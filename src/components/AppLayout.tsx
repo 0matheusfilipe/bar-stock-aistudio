@@ -50,8 +50,8 @@ export const AppLayout: React.FC = () => {
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
       <div className="p-6 flex items-center gap-3 border-b border-border">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-primary-foreground">
-          <ClipboardList size={24} />
+        <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden p-1 shadow-sm">
+          <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
         </div>
         <h1 className="font-bold text-xl tracking-tight">BarStock</h1>
       </div>

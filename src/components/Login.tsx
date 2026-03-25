@@ -62,20 +62,20 @@ export const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 overflow-hidden relative">
-      <DottedSurface className="opacity-100" />
+      <DottedSurface className="opacity-100 z-10" />
       
       {loading && pin.length === 0 ? (
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       ) : (
-        <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+        <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-20">
           
           {/* Left Side: Branding and PIN Display */}
           <div className="flex flex-col items-center lg:items-start gap-12 text-center lg:text-left">
             <div className="flex flex-col items-center lg:items-start gap-6">
-              <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center text-primary-foreground shadow-2xl shadow-primary/20">
-                <ClipboardList size={44} />
-              </div>
-              <div>
+            <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center overflow-hidden shadow-2xl shadow-primary/20 p-2">
+              <img src="/logo.png" alt="BarStock Logo" className="w-full h-full object-contain" />
+            </div>
+            <div>
                 <h1 className="text-5xl font-black tracking-tighter text-foreground mb-3">BarStock</h1>
                 <p className="text-muted-foreground text-lg font-bold uppercase tracking-[0.2em]">Control de Inventario</p>
               </div>
