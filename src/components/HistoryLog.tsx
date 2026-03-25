@@ -16,7 +16,7 @@ import {
 import { inventoryService } from '@/src/services/inventoryService';
 import { InventoryCount, Product, Profile, Category } from '@/src/types';
 import { format, subDays } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { es } from 'date-fns/locale';
 import { 
   Card, 
   CardHeader, 
@@ -172,7 +172,7 @@ export const HistoryLog: React.FC = () => {
       <div className="space-y-6">
         {sortedDates.map(date => {
           const isExpanded = expandedDates.includes(date);
-          const formattedDate = format(new Date(date + 'T12:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });
+          const formattedDate = format(new Date(date + 'T12:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
           const report = reports[date];
           
           // Group products by category for display
@@ -197,7 +197,7 @@ export const HistoryLog: React.FC = () => {
                   <CalendarIcon className="text-muted-foreground" size={20} />
                   <span className="font-bold capitalize text-foreground">{formattedDate}</span>
                   <Badge variant="outline" className="ml-2 bg-muted border-border text-muted-foreground">
-                    {Object.keys(report.products).length} produtos contados
+                    {Object.keys(report.products).length} productos contados
                   </Badge>
                 </div>
                 {isExpanded ? <ChevronUp className="text-foreground" size={20} /> : <ChevronDown className="text-foreground" size={20} />}
@@ -238,7 +238,7 @@ export const HistoryLog: React.FC = () => {
                                     <p className="font-mono font-bold text-emerald-500">{count.receiptsToday > 0 ? `+${count.receiptsToday}` : '-'}</p>
                                   </div>
                                   <div className="text-center">
-                                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Barra (Unid)</p>
+                                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Barra (Uni)</p>
                                     <p className="font-mono font-bold text-foreground">{count.barraUnits || 0}</p>
                                   </div>
                                   <div className="text-center">

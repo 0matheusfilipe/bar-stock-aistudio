@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   TrendingUp,
   AlertTriangle,
   Filter,
   ArrowDownToLine,
   Box,
-  Tag,
-  Search,
   ChevronRight,
   Database,
-  ArrowRight,
   Calculator,
   Save,
-  X
+  X,
+  ChevronDown,
+  CalendarDays,
+  PackageSearch
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { inventoryService } from '@/src/services/inventoryService';
@@ -61,9 +61,24 @@ export const Dashboard: React.FC = () => {
   const [currentCounts, setCurrentCounts] = useState<InventoryCount[]>([]);
   const [receiptHistory, setReceiptHistory] = useState<InventoryCount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
   // Modal State
   const [modalData, setModalData] = useState({
     barra: 0,
@@ -85,7 +100,7 @@ export const Dashboard: React.FC = () => {
         setProducts(prods);
         setReceiptHistory(hist.filter(h => h.type === 'receipt'));
         
-        if (cats.length > 0) setSelectedCategory(cats[0].id);
+        // default: all categories
       } catch (err) {
         console.error('Data load error:', err);
       } finally {
@@ -102,18 +117,34 @@ export const Dashboard: React.FC = () => {
     return () => unsub();
   }, []);
 
-  // Filter products by selected category
-  const filteredProducts = useMemo(() => {
-    if (!selectedCategory) return [];
-    return products.filter(p => p.category_id === selectedCategory);
-  }, [products, selectedCategory]);
-
   // Map counts to products
   const countsMap = useMemo(() => {
     const map = new Map<string, InventoryCount>();
     currentCounts.forEach(c => map.set(c.product_id, c));
     return map;
   }, [currentCounts]);
+
+  // Filter products by selected category + date range on last count
+  const filteredProducts = useMemo(() => {
+    let result = products;
+    if (selectedCategory !== 'all') {
+      result = result.filter(p => p.category_id === selectedCategory);
+    }
+    if (dateFrom || dateTo) {
+      result = result.filter(p => {
+        const count = countsMap.get(p.id);
+        if (!count?.updated_at) return !dateFrom && !dateTo;
+        const ts = typeof count.updated_at === 'string'
+          ? new Date(count.updated_at).getTime()
+          : (count.updated_at as any).toMillis?.() ?? 0;
+        const date = new Date(ts);
+        if (dateFrom && date < new Date(dateFrom + 'T00:00:00')) return false;
+        if (dateTo && date > new Date(dateTo + 'T23:59:59')) return false;
+        return true;
+      });
+    }
+    return result;
+  }, [products, selectedCategory, countsMap, dateFrom, dateTo]);
 
   const stats = useMemo(() => {
     const entries = receiptHistory.length;
@@ -176,7 +207,7 @@ export const Dashboard: React.FC = () => {
             Inventario
           </h2>
           <p className="text-muted-foreground font-bold uppercase tracking-widest text-[10px] mt-2 ml-1 items-center flex gap-2">
-            <Calculator size={14} className="text-primary" /> Painel de Controle de Existências
+            <Calculator size={14} className="text-primary" /> Panel de Control de Existencias
           </p>
         </div>
       </div>
@@ -185,48 +216,106 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiCard
           icon={<ArrowDownToLine size={20} />}
-          label="Entradas Recentes"
+          label="Entradas Recientes"
           value={stats.entries}
           sub="pedidos registrados"
           accent="text-blue-400"
         />
         <KpiCard
           icon={<Box size={20} />}
-          label="Unidades Totais"
+          label="Unidades Totales"
           value={stats.units.toLocaleString()}
-          sub="em estoque atual"
+          sub="en stock actual"
           accent="text-emerald-400"
         />
         <KpiCard
           icon={<AlertTriangle size={20} />}
-          label="Produtos Críticos"
+          label="Productos Críticos"
           value={stats.critical}
-          sub="estoque baixo detectado"
+          sub="stock bajo detectado"
           accent={stats.critical > 0 ? 'text-red-400' : 'text-muted-foreground'}
         />
       </div>
 
-      {/* Categories Horizontal Scroll */}
-      <div className="relative group">
-        <div className="flex items-center gap-1.5 text-muted-foreground mb-4 ml-1">
-          <Filter size={14} />
-          <span className="text-[10px] font-black uppercase tracking-widest">Categorias de Produtos</span>
-        </div>
-        <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar scroll-smooth">
-          {categories.map((cat) => (
+      {/* Filters Row: Category Dropdown + Date Range */}
+      <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
+        
+        {/* Category Dropdown */}
+        <div className="flex-1" ref={dropdownRef}>
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Filter size={12} /> Categoria
+          </label>
+          <div className="relative">
             <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`flex-shrink-0 px-6 py-4 rounded-3xl text-sm font-black transition-all border ${
-                selectedCategory === cat.id
-                  ? 'bg-primary text-primary-foreground border-primary shadow-xl shadow-primary/20 scale-105'
-                  : 'bg-card text-muted-foreground border-border hover:border-primary/30'
-              }`}
+              onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+              className="w-full h-12 flex items-center justify-between px-5 rounded-2xl border border-border bg-card text-sm font-bold hover:border-primary/50 transition-all gap-2"
             >
-              {cat.name}
+              <span>{selectedCategory === 'all' ? 'Todas las Categorías' : categories.find(c => c.id === selectedCategory)?.name ?? '—'}</span>
+              <ChevronDown size={16} className={`text-muted-foreground transition-transform duration-200 ${categoryDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
-          ))}
+            <AnimatePresence>
+              {categoryDropdownOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute z-30 top-14 left-0 w-full bg-card border border-border rounded-2xl shadow-2xl shadow-black/10 overflow-hidden"
+                >
+                  {[{ id: 'all', name: 'Todas las Categorías' }, ...categories].map(cat => (
+                    <button
+                      key={cat.id}
+                      onClick={() => { setSelectedCategory(cat.id); setCategoryDropdownOpen(false); }}
+                      className={`w-full flex items-center px-5 py-3 text-sm font-bold text-left transition-colors ${
+                        selectedCategory === cat.id
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      {selectedCategory === cat.id && <span className="w-2 h-2 rounded-full bg-primary mr-3 shrink-0" />}
+                      {cat.name}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
+
+        {/* Date Range */}
+        <div className="flex-1">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
+            <CalendarDays size={12} /> Período (Último Conteo)
+          </label>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                className="w-full h-12 bg-card border border-border rounded-2xl px-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all cursor-pointer appearance-none"
+              />
+            </div>
+            <span className="text-muted-foreground font-black text-xs shrink-0">hasta</span>
+            <div className="relative flex-1">
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                className="w-full h-12 bg-card border border-border rounded-2xl px-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all cursor-pointer appearance-none"
+              />
+            </div>
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => { setDateFrom(''); setDateTo(''); }}
+                className="h-12 w-12 shrink-0 flex items-center justify-center rounded-2xl border border-border hover:bg-destructive/10 hover:border-destructive/30 text-muted-foreground hover:text-destructive transition-all"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* Product List */}
@@ -307,7 +396,7 @@ export const Dashboard: React.FC = () => {
               <div className="p-8 space-y-8">
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Atualizando Stock</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Actualizando Stock</div>
                     <h2 className="text-3xl font-black tracking-tighter">{selectedProduct.name}</h2>
                   </div>
                   <button onClick={() => setSelectedProduct(null)} className="w-12 h-12 rounded-2xl bg-muted hover:bg-accent flex items-center justify-center transition-colors">
@@ -371,7 +460,7 @@ export const Dashboard: React.FC = () => {
                   onClick={handleSave}
                   className="w-full h-20 rounded-[2rem] text-lg font-black uppercase tracking-[0.2em] shadow-2xl shadow-primary/20 active:scale-95 transition-all gap-3"
                 >
-                  {saving ? 'Gravando...' : <><Save size={24} /> Guardar Cambios</>}
+                  {saving ? 'Guardando...' : <><Save size={24} /> Guardar Cambios</>}
                 </Button>
               </div>
             </motion.div>

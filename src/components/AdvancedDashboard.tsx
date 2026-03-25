@@ -96,39 +96,32 @@ export const AdvancedDashboard: React.FC = () => {
     const totalUnits = filteredHistory.reduce((acc, h) => acc + (h.total_units || 0), 0);
     
     // Group units by day for chart
+    // Group units by day for chart
     const dailyData: Record<string, any> = {};
     const days = 7;
     for(let i=0; i<days; i++) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const dateStr = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-        dailyData[dateStr] = { date: dateStr, entradas: 0, saídas: 0 };
+        dailyData[dateStr] = { date: dateStr, entradas: 0, salidas: 0 };
     }
 
     filteredHistory.forEach(h => {
       const date = new Date(getTimestamp(h.updated_at)).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
       if (dailyData[date]) {
         if (h.type === 'receipt') dailyData[date].entradas += (h.received_boxes || 1);
-        else dailyData[date].saídas += 1;
+        else dailyData[date].salidas += 1;
       }
     });
 
     const chartData = Object.values(dailyData).reverse();
     
-    // Add some subtle mock values if everything is zero to make it look premium
-    if (totalEntradas === 0 && totalUnits === 0) {
-        chartData.forEach((d, i) => {
-            d.entradas = [4, 7, 2, 8, 5, 9, 6][i];
-            d.saídas = [2, 3, 1, 4, 2, 5, 3][i];
-        });
-    }
-
     return {
-      totalEntradas: totalEntradas || 42, // Show mock if empty
-      totalSaidas: totalSaidas || 18,
-      totalUnits: totalUnits || 1250,
+      totalEntradas,
+      totalSaidas,
+      totalUnits,
       chartData,
-      critical: history.filter(h => h.is_critical).length || 2
+      critical: history.filter(h => h.is_critical).length
     };
   }, [filteredHistory, history]);
 
@@ -151,7 +144,7 @@ export const AdvancedDashboard: React.FC = () => {
         <section className="space-y-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
             <div className="space-y-2">
-              <h1 className="text-5xl font-black tracking-tighter text-foreground">Status do <span className="text-primary italic">BarStock</span></h1>
+              <h1 className="text-5xl font-black tracking-tighter text-foreground">Estado de <span className="text-primary italic">BarStock</span></h1>
               <p className="text-muted-foreground font-bold uppercase tracking-widest text-sm">Visualización en tiempo real del inventario</p>
             </div>
             
@@ -246,7 +239,7 @@ export const AdvancedDashboard: React.FC = () => {
                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                       </linearGradient>
-                      <linearGradient id="colorSaidas" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorSalidas" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                       </linearGradient>
@@ -284,10 +277,10 @@ export const AdvancedDashboard: React.FC = () => {
                     />
                     <Area 
                       type="monotone" 
-                      dataKey="saídas" 
+                      dataKey="salidas" 
                       stroke="#3b82f6" 
                       fillOpacity={1} 
-                      fill="url(#colorSaidas)" 
+                      fill="url(#colorSalidas)" 
                       strokeWidth={2} 
                       animationDuration={2000}
                     />
@@ -339,14 +332,7 @@ export const AdvancedDashboard: React.FC = () => {
 
         {/* Categories Detail Section */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(categories.length > 0 ? categories : [
-            { id: '1', name: 'Aguas' },
-            { id: '2', name: 'Cervezas' },
-            { id: '3', name: 'Refrescos' },
-            { id: '4', name: 'Zumos' },
-            { id: '5', name: 'Energéticas' },
-            { id: '6', name: 'Licores' }
-          ]).map((cat, i) => (
+          {categories.map((cat, i) => (
             <div key={cat.id} className="group relative">
                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                <div className="relative p-6 rounded-3xl border border-border bg-card/60 backdrop-blur-sm hover:bg-accent transition-all">
@@ -357,7 +343,7 @@ export const AdvancedDashboard: React.FC = () => {
                     <div className="text-[10px] font-black tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">SALUDABLE</div>
                   </div>
                   <h3 className="text-2xl font-black tracking-tighter mb-1">{cat.name}</h3>
-                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-6">{10 + i * 5} PRODUTOS ACTIVOS</p>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-6">{10 + i * 5} PRODUCTOS ACTIVOS</p>
                   
                   <div className="flex items-center justify-between pt-4 border-t border-border">
                     <div className="flex -space-x-2">
