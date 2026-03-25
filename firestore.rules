@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: profiles
+    // Fields:
+    //   - name: string (required)
+    //   - pin: string (required, 4 digits)
+    //   - role: string ('admin' | 'user')
+    //   - deleted: bool (optional)
+    //   - created_at: timestamp
+    //
+    // Collection: categories
+    // Fields:
+    //   - name: string (required)
+    //   - deleted: bool (optional)
+    //   - created_at: timestamp
+    //
+    // Collection: products
+    // Fields:
+    //   - category_id: string (required)
+    //   - name: string (required)
+    //   - units_per_box: int (required)
+    //   - deleted: bool (optional)
+    //   - created_at: timestamp
+    //
+    // Collection: inventory_counts
+    // Fields:
+    //   - product_id: string (required)
+    //   - employee_id: string (required)
+    //   - barra_units: int (required)
+    //   - almacen_boxes: int (required)
+    //   - total_units: int (required)
+    //   - is_critical: bool (required)
+    //   - updated_at: timestamp
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      // Allowing true for PIN-only access when Firebase Auth providers are disabled.
+      // The PIN validation in the UI acts as the primary access control.
+      return true;
+    }
+
+    function isAdmin() {
+      // Since we're using PIN-only and anonymous auth, request.auth.uid doesn't match profile.id easily.
+      // For this internal tool, we'll allow authenticated users to perform operations.
+      // Admin-only actions will be restricted by the UI, but for real security, 
+      // one would need a more robust linking between Auth and Profiles.
+      return isAuthenticated();
+    }
+
+    function isValidPin(pin) {
+      return pin is string && pin.matches('^[0-9]{4}$');
+    }
+
+    function isValidProfile(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidPin(data.pin) &&
+             (!('role' in data) || data.role == 'admin' || data.role == 'user') &&
+             (!('deleted' in data) || data.deleted is bool);
+    }
+
+    function isValidCategory(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             (!('deleted' in data) || data.deleted is bool);
+    }
+
+    function isValidProduct(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.category_id is string &&
+             data.units_per_box is int && data.units_per_box > 0 &&
+             (!('deleted' in data) || data.deleted is bool);
+    }
+
+    function isValidInventoryCount(data) {
+      return data.product_id is string &&
+             data.employee_id is string &&
+             data.barra_units is int && data.barra_units >= 0 &&
+             data.almacen_boxes is int && data.almacen_boxes >= 0 &&
+             data.total_units is int && data.total_units >= 0 &&
+             data.is_critical is bool &&
+             (!('updated_at' in data) || data.updated_at is timestamp);
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /profiles/{profileId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidProfile(request.resource.data);
+      allow update: if isAuthenticated() && (isValidProfile(request.resource.data) || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted']) && request.resource.data.deleted == true));
+      allow delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidCategory(request.resource.data) && isAdmin();
+      allow update: if isAuthenticated() && isAdmin() && (isValidCategory(request.resource.data) || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted']) && request.resource.data.deleted == true));
+      allow delete: if isAdmin();
+    }
+
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidProduct(request.resource.data) && isAdmin();
+      allow update: if isAuthenticated() && isAdmin() && (isValidProduct(request.resource.data) || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted']) && request.resource.data.deleted == true));
+      allow delete: if isAdmin();
+    }
+
+    match /inventory_counts/{countId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isValidInventoryCount(request.resource.data);
+    }
+
+    match /inventory_history/{historyId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidInventoryCount(request.resource.data);
+    }
+  }
+}

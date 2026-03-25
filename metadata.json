@@ -1,0 +1,5 @@
+{
+  "name": "Sistema de Inventário Bar/Restaurante",
+  "description": "Sistema de inventário para tablets em ambiente de bar/restaurante com autenticação via PIN e contagem em tempo real.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Profile",
+      "description": "Empleados del bar/restaurante",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "UUID del empleado" },
+        "name": { "type": "string", "description": "Nombre del empleado" },
+        "pin": { "type": "string", "description": "PIN de 4 dígitos", "format": "numeric" },
+        "role": { "type": "string", "description": "Cargo del empleado (admin o usuario)", "enum": ["admin", "user"] },
+        "deleted": { "type": "boolean", "description": "Flag de eliminación lógica" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "pin", "role"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Categorías de productos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "description": "Nombre de la categoría (ej: Cervezas)" },
+        "deleted": { "type": "boolean", "description": "Flag de eliminación lógica" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Catálogo de productos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "category_id": { "type": "string", "description": "ID de la categoría" },
+        "name": { "type": "string", "description": "Nombre del producto" },
+        "units_per_box": { "type": "integer", "description": "Unidades por caja" },
+        "deleted": { "type": "boolean", "description": "Flag de eliminación lógica" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["category_id", "name", "units_per_box"]
+    },
+    "InventoryCount": {
+      "title": "InventoryCount",
+      "description": "Conteo de inventario por producto",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "product_id": { "type": "string", "description": "ID del producto" },
+        "employee_id": { "type": "string", "description": "ID del último empleado que modificó" },
+        "barra_units": { "type": "integer", "description": "Cantidad en la barra" },
+        "almacen_boxes": { "type": "integer", "description": "Cantidad en el almacén (cajas)" },
+        "total_units": { "type": "integer", "description": "Suma de barra + (almacén * units_per_box)" },
+        "is_critical": { "type": "boolean", "description": "Alerta de falta" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["product_id", "employee_id", "barra_units", "almacen_boxes", "total_units", "is_critical"]
+    }
+  },
+  "firestore": {
+    "/profiles/{profileId}": {
+      "schema": "Profile",
+      "description": "Colección de perfiles de empleados"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Colección de categorías"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Colección de productos"
+    },
+    "/inventory_counts/{countId}": {
+      "schema": "InventoryCount",
+      "description": "Colección de conteos de inventario"
+    }
+  }
+}
