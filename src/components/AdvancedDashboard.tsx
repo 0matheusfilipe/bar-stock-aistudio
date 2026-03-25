@@ -13,6 +13,7 @@ import {
   AreaChart,
   Area
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, 
   Package, 
@@ -48,6 +49,7 @@ import {
 const getTimestamp = (u: any) => u?.toDate ? u.toDate().getTime() : (typeof u === 'string' ? new Date(u).getTime() : 0);
 
 export const AdvancedDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [history, setHistory] = useState<InventoryCount[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -93,13 +95,15 @@ export const AdvancedDashboard: React.FC = () => {
   const stats = useMemo(() => {
     const totalEntradas = filteredHistory.filter(h => h.type === 'receipt').length;
     const totalSaidas = filteredHistory.filter(h => h.type === 'count').length;
-    const totalUnits = filteredHistory.reduce((acc, h) => acc + (h.total_units || 0), 0);
+    const totalUnits = products.reduce((acc, p) => {
+        const count = history.find(h => h.product_id === p.id);
+        return acc + (count?.total_units || 0);
+    }, 0);
     
     // Group units by day for chart
-    // Group units by day for chart
     const dailyData: Record<string, any> = {};
-    const days = 7;
-    for(let i=0; i<days; i++) {
+    const days = period === '30d' ? 30 : 7;
+    for(let i=0; i < days; i++) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const dateStr = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
@@ -115,15 +119,69 @@ export const AdvancedDashboard: React.FC = () => {
     });
 
     const chartData = Object.values(dailyData).reverse();
-    
+
+    // Calculate Efficiency (products counted today / total products)
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const countedToday = products.filter(p => {
+        const h = history.find(h => h.product_id === p.id);
+        return h && getTimestamp(h.updated_at) >= today.getTime();
+    }).length;
+    const efficiency = products.length > 0 ? Math.round((countedToday / products.length) * 100) : 0;
+
+    // Categories breakdown
+    const categoryStats = categories.map(cat => {
+        const catProducts = products.filter(p => p.category_id === cat.id);
+        const totalUnits = catProducts.reduce((acc, p) => {
+            const h = history.find(h => h.product_id === p.id);
+            return acc + (h?.total_units || 0);
+        }, 0);
+        const criticalCount = catProducts.filter(p => {
+            const h = history.find(h => h.product_id === p.id);
+            return h?.is_critical;
+        }).length;
+
+        // Get unique employees for this category from history
+        const employeeIds = new Set(
+            history
+                .filter(h => catProducts.some(p => p.id === h.product_id))
+                .map(h => h.employee_id)
+        );
+
+        return {
+            ...cat,
+            productCount: catProducts.length,
+            totalUnits,
+            criticalCount,
+            isHealthy: criticalCount === 0,
+            employeeCount: employeeIds.size,
+            employees: Array.from(employeeIds).slice(0, 3)
+        };
+    }).sort((a, b) => b.totalUnits - a.totalUnits);
+
+    // KEY DATA: Find category with most recent growth (receipts)
+    const topReceiptCategory = categories.map(cat => {
+        const count = filteredHistory.filter(h => 
+            h.type === 'receipt' && 
+            products.find(p => p.id === h.product_id)?.category_id === cat.id
+        ).length;
+        return { name: cat.name, count };
+    }).sort((a, b) => b.count - a.count)[0];
+
     return {
       totalEntradas,
       totalSaidas,
       totalUnits,
       chartData,
-      critical: history.filter(h => h.is_critical).length
+      efficiency,
+      categoryStats,
+      topReceiptCategory,
+      critical: products.filter(p => {
+        const h = history.find(h => h.product_id === p.id);
+        return h?.is_critical;
+      }).length
     };
-  }, [filteredHistory, history]);
+  }, [filteredHistory, history, products, categories, period]);
 
   if (loading) {
     return (
@@ -171,7 +229,7 @@ export const AdvancedDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2 text-xs font-bold text-emerald-500">
-                <ArrowUpRight size={14} /> 12% Incremento
+                <ArrowUpRight size={14} /> Actividad en periodo
               </div>
             </CardContent>
           </Card>
@@ -208,10 +266,10 @@ export const AdvancedDashboard: React.FC = () => {
               <CardDescription className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                 <CheckCircle2 size={12} className="text-primary" /> Eficiencia
               </CardDescription>
-              <CardTitle className="text-4xl font-black tracking-tighter">98%</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-xs text-muted-foreground font-medium">Control Inventario</p>
+              <CardTitle className="text-4xl font-black tracking-tighter">{stats.efficiency}%</CardTitle>
+              <p className="text-xs text-muted-foreground font-medium mt-2">Control Inventario Hoy</p>
             </CardContent>
           </Card>
         </section>
@@ -301,7 +359,11 @@ export const AdvancedDashboard: React.FC = () => {
                     <CardTitle className="text-lg">Dato Clave</CardTitle>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Se registró un aumento del <span className="font-bold text-foreground">14.5%</span> en las recepciones de <span className="italic">Cervezas</span> esta semana.
+                    {stats.topReceiptCategory?.count > 0 ? (
+                      <>Se registraron <span className="font-bold text-foreground">{stats.topReceiptCategory.count}</span> nuevas recepciones en <span className="italic">{stats.topReceiptCategory.name}</span> en este periodo.</>
+                    ) : (
+                      <>No se detectaron nuevas recepciones significativas en este periodo.</>
+                    )}
                   </p>
                 </CardHeader>
              </Card>
@@ -310,29 +372,33 @@ export const AdvancedDashboard: React.FC = () => {
                 <CardHeader>
                   <CardTitle className="text-lg">Categorías Top</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {categories.slice(0, 4).map((cat, i) => (
-                    <div key={cat.id} className="space-y-2">
-                       <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest">
-                         <span>{cat.name}</span>
-                         <span className="text-primary">{85 - i * 15}%</span>
-                       </div>
-                       <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                         <div 
-                          className="h-full bg-primary rounded-full" 
-                          style={{ width: `${85 - i * 15}%` }} 
-                         />
-                       </div>
-                    </div>
-                  ))}
+                 <CardContent className="space-y-6">
+                  {stats.categoryStats.slice(0, 4).map((cat, i) => {
+                    const maxUnits = stats.categoryStats[0]?.totalUnits || 1;
+                    const percentage = Math.round((cat.totalUnits / maxUnits) * 100);
+                    return (
+                      <div key={cat.id} className="space-y-2">
+                        <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest">
+                          <span>{cat.name}</span>
+                          <span className="text-primary">{percentage}%</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary rounded-full" 
+                            style={{ width: `${percentage}%` }} 
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </CardContent>
              </Card>
           </div>
         </section>
 
         {/* Categories Detail Section */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((cat, i) => (
+         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {stats.categoryStats.map((cat, i) => (
             <div key={cat.id} className="group relative">
                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                <div className="relative p-6 rounded-3xl border border-border bg-card/60 backdrop-blur-sm hover:bg-accent transition-all">
@@ -340,18 +406,29 @@ export const AdvancedDashboard: React.FC = () => {
                     <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all">
                       {i % 2 === 0 ? <Zap size={24} /> : <Layers size={24} />}
                     </div>
-                    <div className="text-[10px] font-black tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">SALUDABLE</div>
+                    {cat.isHealthy ? (
+                        <div className="text-[10px] font-black tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">SALUDABLE</div>
+                    ) : (
+                        <div className="text-[10px] font-black tracking-widest text-red-500 bg-red-500/10 px-2 py-0.5 rounded-md">CRÍTICO ({cat.criticalCount})</div>
+                    )}
                   </div>
                   <h3 className="text-2xl font-black tracking-tighter mb-1">{cat.name}</h3>
-                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-6">{10 + i * 5} PRODUCTOS ACTIVOS</p>
+                  <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-6">{cat.productCount} PRODUCTOS ACTIVOS</p>
                   
                   <div className="flex items-center justify-between pt-4 border-t border-border">
                     <div className="flex -space-x-2">
-                      {[1, 2, 3].map(j => (
-                        <div key={j} className="w-6 h-6 rounded-full border-2 border-card bg-muted text-[8px] flex items-center justify-center font-bold">U{j}</div>
-                      ))}
+                      {cat.employees.length > 0 ? cat.employees.map((empId, j) => (
+                        <div key={empId} title={empId} className="w-6 h-6 rounded-full border-2 border-card bg-primary/20 text-[8px] flex items-center justify-center font-bold">U{j+1}</div>
+                      )) : (
+                        <div className="text-[8px] text-muted-foreground uppercase font-bold">Sin actividad</div>
+                      )}
                     </div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1"> Ver Detalles <TrendingUp size={10} /></div>
+                    <button 
+                      onClick={() => navigate(`/category/${cat.id}`)}
+                      className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1 hover:scale-105 active:scale-95 transition-all outline-none"
+                    >
+                      Ver Detalles <TrendingUp size={10} />
+                    </button>
                   </div>
                </div>
             </div>
