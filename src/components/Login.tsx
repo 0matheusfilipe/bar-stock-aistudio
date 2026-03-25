@@ -6,6 +6,7 @@ import { inventoryService } from '@/src/services/inventoryService';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { motion, useAnimation } from 'motion/react';
 import { toast } from 'sonner';
+import { DottedSurface } from './ui/dotted-surface';
 
 export const Login: React.FC = () => {
   const [pin, setPin] = useState('');
@@ -59,98 +60,96 @@ export const Login: React.FC = () => {
     }
   };
 
-  if (loading && pin.length === 0) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 overflow-hidden">
-      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-        
-        {/* Left Side: Branding and PIN Display */}
-        <div className="flex flex-col items-center lg:items-start gap-12 text-center lg:text-left">
-          <div className="flex flex-col items-center lg:items-start gap-6">
-            <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center text-zinc-950 shadow-2xl shadow-white/10">
-              <ClipboardList size={44} />
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden relative">
+      <DottedSurface className="opacity-100 bg-background" />
+      
+      {loading && pin.length === 0 ? (
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      ) : (
+        <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+          
+          {/* Left Side: Branding and PIN Display */}
+          <div className="flex flex-col items-center lg:items-start gap-12 text-center lg:text-left">
+            <div className="flex flex-col items-center lg:items-start gap-6">
+              <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center text-primary-foreground shadow-2xl shadow-primary/20">
+                <ClipboardList size={44} />
+              </div>
+              <div>
+                <h1 className="text-5xl font-black tracking-tighter text-foreground mb-3">BarStock</h1>
+                <p className="text-muted-foreground text-lg font-bold uppercase tracking-[0.2em]">Control de Inventario</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-5xl font-black tracking-tighter text-white mb-3">BarStock</h1>
-              <p className="text-zinc-500 text-lg font-bold uppercase tracking-[0.2em]">Control de Inventario</p>
-            </div>
-          </div>
 
-          <div className="space-y-6 w-full max-w-xs">
-            <p className="text-zinc-400 font-bold uppercase tracking-widest text-sm">Ingrese su PIN de 4 dígitos</p>
-            
-            <motion.div 
-              animate={controls}
-              className="flex justify-between gap-4"
-            >
-              {[0, 1, 2, 3].map((i) => (
-                <div 
-                  key={i} 
-                  className={`w-16 h-20 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center ${
-                    error 
-                      ? 'border-red-500 bg-red-500/10' 
-                      : pin.length > i 
-                        ? 'border-white bg-white/5 scale-105' 
-                        : 'border-zinc-800 bg-zinc-900/50'
-                  }`}
+            <div className="space-y-6 w-full max-w-xs">
+              <p className="text-muted-foreground font-bold uppercase tracking-widest text-sm">Ingrese su PIN de 4 dígitos</p>
+              
+              <motion.div 
+                animate={controls}
+                className="flex justify-between gap-4"
+              >
+                {[0, 1, 2, 3].map((i) => (
+                  <div 
+                    key={i} 
+                    className={`w-16 h-20 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center ${
+                      error 
+                        ? 'border-destructive bg-destructive/10' 
+                        : pin.length > i 
+                          ? 'border-primary bg-primary/5 scale-105' 
+                          : 'border-border bg-card/50 backdrop-blur-sm'
+                    }`}
+                  >
+                    {pin.length > i && (
+                      <div className={`w-4 h-4 rounded-full ${error ? 'bg-destructive' : 'bg-primary'} shadow-lg shadow-primary/20`} />
+                    )}
+                  </div>
+                ))}
+              </motion.div>
+              
+              {error && (
+                <motion.p 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-destructive font-bold text-center lg:text-left text-sm uppercase tracking-widest"
                 >
-                  {pin.length > i && (
-                    <div className={`w-4 h-4 rounded-full ${error ? 'bg-red-500' : 'bg-white'} shadow-lg shadow-white/20`} />
-                  )}
-                </div>
-              ))}
-            </motion.div>
-            
-            {error && (
-              <motion.p 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-red-500 font-bold text-center lg:text-left text-sm uppercase tracking-widest"
-              >
-                PIN incorrecto. Inténtelo de nuevo.
-              </motion.p>
-            )}
+                  PIN incorrecto. Inténtelo de nuevo.
+                </motion.p>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Right Side: Keypad */}
-        <div className="flex justify-center lg:justify-end">
-          <div className="grid grid-cols-3 gap-4 p-8 bg-zinc-900/30 rounded-[3rem] border border-zinc-800/50 backdrop-blur-sm">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+          {/* Right Side: Keypad */}
+          <div className="flex justify-center lg:justify-end">
+            <div className="grid grid-cols-3 gap-4 p-8 bg-card/30 rounded-[3rem] border border-border/50 backdrop-blur-md">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                <button
+                  key={num}
+                  disabled={loading}
+                  onClick={() => handlePress(num.toString())}
+                  className="w-24 h-24 rounded-3xl bg-card border border-border text-4xl font-black text-foreground hover:bg-accent active:scale-90 transition-all shadow-xl shadow-black/5 flex items-center justify-center"
+                >
+                  {num}
+                </button>
+              ))}
+              <div className="w-24 h-24" /> {/* Empty space */}
               <button
-                key={num}
                 disabled={loading}
-                onClick={() => handlePress(num.toString())}
-                className="w-24 h-24 rounded-3xl bg-zinc-900 border border-zinc-800 text-4xl font-black text-white hover:bg-zinc-800 active:scale-90 transition-all shadow-xl shadow-black/40 flex items-center justify-center"
+                onClick={() => handlePress('0')}
+                className="w-24 h-24 rounded-3xl bg-card border border-border text-4xl font-black text-foreground hover:bg-accent active:scale-90 transition-all shadow-xl shadow-black/5 flex items-center justify-center"
               >
-                {num}
+                0
               </button>
-            ))}
-            <div className="w-24 h-24" /> {/* Empty space */}
-            <button
-              disabled={loading}
-              onClick={() => handlePress('0')}
-              className="w-24 h-24 rounded-3xl bg-zinc-900 border border-zinc-800 text-4xl font-black text-white hover:bg-zinc-800 active:scale-90 transition-all shadow-xl shadow-black/40 flex items-center justify-center"
-            >
-              0
-            </button>
-            <button
-              disabled={loading}
-              onClick={handleBackspace}
-              className="w-24 h-24 rounded-3xl bg-zinc-800/50 border border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white active:scale-90 transition-all flex items-center justify-center"
-            >
-              <Delete size={32} />
-            </button>
+              <button
+                disabled={loading}
+                onClick={handleBackspace}
+                className="w-24 h-24 rounded-3xl bg-muted border border-border text-muted-foreground hover:bg-accent hover:text-foreground active:scale-90 transition-all flex items-center justify-center"
+              >
+                <Delete size={32} />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
