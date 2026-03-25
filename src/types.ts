@@ -18,6 +18,7 @@ export interface Product {
   category_id: string;
   name: string;
   units_per_box: number; // e.g., 24 for a case of beer
+  target_stock?: number; // Ideal stock level
   created_at: string;
 }
 
@@ -28,6 +29,7 @@ export interface InventoryCount {
   barra_units: number;
   almacen_boxes: number;
   total_units: number;
+  faltante?: number; // Missing from target
   is_critical: boolean;
   updated_at: string;
   type?: 'count' | 'receipt';

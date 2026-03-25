@@ -259,6 +259,7 @@ export const inventoryService = {
     barraUnits: number, 
     almacenBoxes: number, 
     totalUnits: number,
+    faltante: number,
     isCritical: boolean
   ) {
     const path = 'inventory_counts';
@@ -270,6 +271,7 @@ export const inventoryService = {
         barra_units: Number(barraUnits) || 0,
         almacen_boxes: Number(almacenBoxes) || 0,
         total_units: Number(totalUnits) || 0,
+        faltante: Number(faltante) || 0,
         is_critical: Boolean(isCritical),
         type: 'count',
         updated_at: serverTimestamp()

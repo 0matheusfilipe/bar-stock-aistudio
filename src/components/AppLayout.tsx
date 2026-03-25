@@ -51,7 +51,7 @@ export const AppLayout: React.FC = () => {
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full">
-      <div className="p-4 flex items-center gap-3 border-b border-border">
+      <div className="p-2 flex items-center gap-3 border-b border-border py-4">
         <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden p-1 shadow-sm">
           <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
         </div>
@@ -63,7 +63,7 @@ export const AppLayout: React.FC = () => {
           <Link
             key={item.path}
             to={item.path}
-            className={`flex items-center !justify-start w-full pl-4 py-3 rounded-xl font-medium transition-all ${
+            className={`flex items-center !justify-start w-full pl-2 py-3 rounded-xl font-medium transition-all ${
               location.pathname === item.path 
                 ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/10' 
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
