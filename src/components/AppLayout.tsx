@@ -38,6 +38,7 @@ export const AppLayout: React.FC = () => {
   };
 
   const navItems = [
+    { label: 'Estatísticas', path: '/stats', icon: <TrendingUp className="mr-2 h-5 w-5" /> },
     { label: 'Inventario', path: '/dashboard', icon: <ClipboardList className="mr-2 h-5 w-5" /> },
     { label: 'Entradas', path: '/receipts', icon: <PackagePlus className="mr-2 h-5 w-5" /> },
     { label: 'Historial', path: '/history', icon: <History className="mr-2 h-5 w-5" /> },
