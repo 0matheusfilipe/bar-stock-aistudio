@@ -8,7 +8,8 @@ import {
   User,
   Settings,
   PackagePlus,
-  Menu
+  Menu,
+  TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -57,12 +58,12 @@ export const AppLayout: React.FC = () => {
         <h1 className="font-bold text-xl tracking-tight">BarStock</h1>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-6 space-y-2">
         {navItems.map((item) => (
           <Link
             key={item.path}
             to={item.path}
-            className={`flex items-center px-4 py-3 rounded-xl font-medium transition-all ${
+            className={`flex items-center justify-start w-full px-4 py-3 rounded-xl font-medium transition-all ${
               location.pathname === item.path 
                 ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/10' 
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'

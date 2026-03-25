@@ -7,6 +7,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
 import { Dashboard } from './components/Dashboard';
+import { AdvancedDashboard } from './components/AdvancedDashboard';
 import { Login } from './components/Login';
 import { CategoryDetail } from './components/CategoryDetail';
 import { InventorySummary } from './components/InventorySummary';
@@ -65,6 +66,7 @@ const AppRoutes = () => {
       
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
+          <Route path="/stats" element={<AdvancedDashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/history" element={<HistoryLog />} />
           <Route path="/admin" element={<AdminPanel />} />
