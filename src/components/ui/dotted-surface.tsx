@@ -8,16 +8,8 @@ type DottedSurfaceProps = Omit<React.ComponentProps<'div'>, 'ref'>;
 
 export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 	const { theme } = useTheme();
-
 	const containerRef = useRef<HTMLDivElement>(null);
-	const sceneRef = useRef<{
-		scene: THREE.Scene;
-		camera: THREE.PerspectiveCamera;
-		renderer: THREE.WebGLRenderer;
-		particles: THREE.Points[];
-		animationId: number;
-		count: number;
-	} | null>(null);
+	const requestRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		if (!containerRef.current) return;
@@ -26,7 +18,6 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 		const AMOUNTX = 40;
 		const AMOUNTY = 60;
 
-		// Scene setup
 		const scene = new THREE.Scene();
 		const fogColor = theme === 'dark' ? 0x000000 : 0xffffff;
 		scene.fog = new THREE.Fog(fogColor, 2000, 10000);
@@ -49,50 +40,67 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 
 		containerRef.current.appendChild(renderer.domElement);
 
-		// Create particles
-		const positions: number[] = [];
-		const colors: number[] = [];
-
-		// Create geometry for all particles
-		const geometry = new THREE.BufferGeometry();
+		const positions = new Float32Array(AMOUNTX * AMOUNTY * 3);
+		const colors = new Float32Array(AMOUNTX * AMOUNTY * 3);
 
 		for (let ix = 0; ix < AMOUNTX; ix++) {
 			for (let iy = 0; iy < AMOUNTY; iy++) {
-				const x = ix * SEPARATION - (AMOUNTX * SEPARATION) / 2;
-				const y = 0; // Will be animated
-				const z = iy * SEPARATION - (AMOUNTY * SEPARATION) / 2;
+				const index = (ix * AMOUNTY + iy) * 3;
+				positions[index] = ix * SEPARATION - (AMOUNTX * SEPARATION) / 2;
+				positions[index + 1] = 0;
+				positions[index + 2] = iy * SEPARATION - (AMOUNTY * SEPARATION) / 2;
 
-				positions.push(x, y, z);
 				if (theme === 'dark') {
-					colors.push(0.7, 0.7, 1);
+					colors[index] = 0.7;
+					colors[index + 1] = 0.7;
+					colors[index + 2] = 1;
 				} else {
-					colors.push(0.3, 0.3, 0.3);
+					colors[index] = 0.3;
+					colors[index + 1] = 0.3;
+					colors[index + 2] = 0.3;
 				}
 			}
 		}
 
-		geometry.setAttribute(
-			'position',
-			new THREE.Float32BufferAttribute(positions, 3),
-		);
-		geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+		const geometry = new THREE.BufferGeometry();
+		geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+		geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-		// Create material
 		const material = new THREE.PointsMaterial({
-			size: 8,
+			size: 10,
 			vertexColors: true,
 			transparent: true,
 			opacity: 0.8,
 			sizeAttenuation: true,
 		});
 
-		// Create points object
 		const points = new THREE.Points(geometry, material);
 		scene.add(points);
 
 		let count = 0;
+		const animate = () => {
+			const positionAttribute = geometry.attributes.position;
+			const array = positionAttribute.array as Float32Array;
 
-		// Handle window resize
+			let i = 0;
+			for (let ix = 0; ix < AMOUNTX; ix++) {
+				for (let iy = 0; iy < AMOUNTY; iy++) {
+					const index = i * 3;
+					array[index + 1] =
+						Math.sin((ix + count) * 0.3) * 150 +
+						Math.sin((iy + count) * 0.5) * 150;
+					i++;
+				}
+			}
+
+			positionAttribute.needsUpdate = true;
+			points.rotation.y += 0.0005;
+			
+			renderer.render(scene, camera);
+			count += 0.02;
+			requestRef.current = requestAnimationFrame(animate);
+		};
+
 		const handleResize = () => {
 			camera.aspect = window.innerWidth / window.innerHeight;
 			camera.updateProjectionMatrix();
@@ -100,73 +108,17 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 		};
 
 		window.addEventListener('resize', handleResize);
+		requestRef.current = requestAnimationFrame(animate);
 
-		// Animation function
-		const animateAction = () => {
-			const positionAttribute = geometry.attributes.position;
-			const positions = positionAttribute.array as Float32Array;
-
-			let i = 0;
-			for (let ix = 0; ix < AMOUNTX; ix++) {
-				for (let iy = 0; iy < AMOUNTY; iy++) {
-					const index = i * 3;
-
-					// Animate Y position with sine waves
-					positions[index + 1] =
-						Math.sin((ix + count) * 0.3) * 150 +
-						Math.sin((iy + count) * 0.5) * 150;
-
-					i++;
-				}
-			}
-
-			positionAttribute.needsUpdate = true;
-			points.rotation.y += 0.001;
-			points.rotation.z += 0.0005;
-
-			renderer.render(scene, camera);
-			count += 0.2;
-		};
-
-		// Start animation loop
-		renderer.setAnimationLoop(animateAction);
-
-		// Store references
-		sceneRef.current = {
-			scene,
-			camera,
-			renderer,
-			particles: [points],
-			animationId: 0, // Not using local ID with setAnimationLoop
-			count,
-		};
-
-		// Cleanup function
 		return () => {
 			window.removeEventListener('resize', handleResize);
-
-			if (sceneRef.current) {
-				sceneRef.current.renderer.setAnimationLoop(null);
-
-				// Clean up Three.js objects
-				sceneRef.current.scene.traverse((object) => {
-					if (object instanceof THREE.Points) {
-						object.geometry.dispose();
-						if (Array.isArray(object.material)) {
-							object.material.forEach((material) => material.dispose());
-						} else {
-							object.material.dispose();
-						}
-					}
-				});
-
-				sceneRef.current.renderer.dispose();
-
-				if (containerRef.current && sceneRef.current.renderer.domElement) {
-					containerRef.current.removeChild(
-						sceneRef.current.renderer.domElement,
-					);
-				}
+			if (requestRef.current) cancelAnimationFrame(requestRef.current);
+			
+			renderer.dispose();
+			geometry.dispose();
+			material.dispose();
+			if (containerRef.current && renderer.domElement) {
+				containerRef.current.removeChild(renderer.domElement);
 			}
 		};
 	}, [theme]);
@@ -174,7 +126,7 @@ export function DottedSurface({ className, ...props }: DottedSurfaceProps) {
 	return (
 		<div
 			ref={containerRef}
-			className={cn('pointer-events-none fixed inset-0 z-0', className)}
+			className={cn('pointer-events-none fixed inset-0 z-[100] overflow-hidden', className)}
 			{...props}
 		/>
 	);

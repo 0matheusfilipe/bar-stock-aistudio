@@ -61,8 +61,8 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden relative">
-      <DottedSurface className="opacity-100 bg-background" />
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 overflow-hidden relative">
+      <DottedSurface className="opacity-100" />
       
       {loading && pin.length === 0 ? (
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
