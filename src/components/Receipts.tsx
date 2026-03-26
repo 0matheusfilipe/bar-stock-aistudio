@@ -12,6 +12,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { inventoryService } from '@/src/services/inventoryService';
 import { useAuth } from '@/src/contexts/AuthContext';
 import { Product, Category } from '@/src/types';
@@ -157,78 +159,80 @@ export const Receipts: React.FC = () => {
         </div>
 
         {/* Right Column: Receipt Form */}
-        <div className="w-1/2">
+        <div className="w-1/2 min-h-0">
           {selectedProduct ? (
-            <Card className="h-full border-border/50 bg-card/50 flex flex-col">
-              <CardContent className="p-8 flex-1 flex flex-col items-center justify-center text-center">
-                <div className="w-24 h-24 rounded-3xl bg-primary/10 text-primary flex items-center justify-center mb-6">
-                  <PackagePlus size={48} />
-                </div>
-                
-                <h3 className="text-3xl font-black tracking-tight text-foreground mb-2">
-                  {selectedProduct.name}
-                </h3>
-                <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest mb-12">
-                  Registrar Recepción
-                </p>
-
-                <div className="w-full max-w-sm space-y-8">
-                  <div>
-                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">
-                      Cantidad Recibida (Cajas)
-                    </label>
-                    <div className="flex items-center justify-center gap-6">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="w-16 h-16 rounded-2xl border-2 hover:bg-muted active:scale-95 transition-all"
-                        onClick={() => setReceivedBoxes(Math.max(0, receivedBoxes - 1))}
-                      >
-                        <Minus size={24} />
-                      </Button>
-                      
-                      <div className="w-32 h-24 bg-background rounded-3xl border-2 border-border flex items-center justify-center">
-                        <span className="text-5xl font-black font-mono">{receivedBoxes}</span>
+            <Card className="h-full border-border/50 bg-card/50 flex flex-col overflow-hidden">
+              <ScrollArea className="flex-1">
+                <CardContent className="p-6 flex flex-col items-center justify-center text-center min-h-full">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4 shrink-0">
+                    <PackagePlus size={32} />
+                  </div>
+                  
+                  <h3 className="text-2xl font-black tracking-tight text-foreground mb-1">
+                    {selectedProduct.name}
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mb-6">
+                    Registrar Recepción
+                  </p>
+  
+                  <div className="w-full max-w-sm space-y-6">
+                    <div className="space-y-3">
+                      <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        Cantidad Recibida (Cajas)
+                      </label>
+                      <div className="flex items-center justify-center gap-4">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="w-12 h-12 rounded-xl border-2 hover:bg-muted active:scale-95 transition-all"
+                          onClick={() => setReceivedBoxes(Math.max(0, receivedBoxes - 1))}
+                        >
+                          <Minus size={20} />
+                        </Button>
+                        
+                        <div className="w-24 h-16 bg-background rounded-2xl border-2 border-border flex items-center justify-center">
+                          <span className="text-3xl font-black font-mono">{receivedBoxes}</span>
+                        </div>
+  
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="w-12 h-12 rounded-xl border-2 hover:bg-muted active:scale-95 transition-all"
+                          onClick={() => setReceivedBoxes(receivedBoxes + 1)}
+                        >
+                          <Plus size={20} />
+                        </Button>
                       </div>
-
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="w-16 h-16 rounded-2xl border-2 hover:bg-muted active:scale-95 transition-all"
-                        onClick={() => setReceivedBoxes(receivedBoxes + 1)}
-                      >
-                        <Plus size={24} />
-                      </Button>
                     </div>
+  
+                    <div className="bg-muted/50 rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total en Unidades</span>
+                      <span className="text-lg font-black font-mono text-foreground">
+                        {receivedBoxes * (selectedProduct.units_per_box || 1)}
+                      </span>
+                    </div>
+  
+                    <Button 
+                      className="w-full h-14 rounded-xl text-base font-bold uppercase tracking-widest"
+                      disabled={receivedBoxes === 0 || isSubmitting}
+                      onClick={handleRegisterReceipt}
+                    >
+                      {isSubmitting ? (
+                        <Loader2 className="animate-spin mr-2" size={20} />
+                      ) : (
+                        <CheckCircle2 className="mr-2" size={20} />
+                      )}
+                      Confirmar Entrada
+                    </Button>
                   </div>
-
-                  <div className="bg-muted/50 rounded-2xl p-4 flex items-center justify-between">
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Total en Unidades</span>
-                    <span className="text-xl font-black font-mono text-foreground">
-                      {receivedBoxes * (selectedProduct.units_per_box || 1)}
-                    </span>
-                  </div>
-
-                  <Button 
-                    className="w-full h-16 rounded-2xl text-lg font-bold uppercase tracking-widest"
-                    disabled={receivedBoxes === 0 || isSubmitting}
-                    onClick={handleRegisterReceipt}
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="animate-spin mr-2" size={24} />
-                    ) : (
-                      <CheckCircle2 className="mr-2" size={24} />
-                    )}
-                    Confirmar Entrada
-                  </Button>
-                </div>
-              </CardContent>
+                </CardContent>
+              </ScrollArea>
             </Card>
           ) : (
             <div className="h-full border-2 border-dashed border-border rounded-[2.5rem] flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
-              <PackagePlus size={64} className="mb-6 opacity-20" />
-              <h3 className="text-2xl font-bold tracking-tight text-foreground mb-2">Seleccione un Producto</h3>
-              <p className="max-w-xs">Elija un producto de la lista de al lado para registrar una nueva entrada de stock.</p>
+              <PackagePlus size={48} className="mb-4 opacity-20" />
+              <h3 className="text-xl font-bold tracking-tight text-foreground mb-2">Seleccione un Producto</h3>
+              <p className="text-sm max-w-[200px]">Elija un producto de la lista de al lado para registrar una nueva entrada de stock.</p>
             </div>
           )}
         </div>
