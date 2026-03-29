@@ -20,10 +20,12 @@ import {
   SheetTitle
 } from '@/components/ui/sheet';
 import { useAuth } from '@/src/contexts/AuthContext';
+import { useUnit } from '@/src/contexts/UnitContext';
 import { ThemeToggle } from './ThemeToggle';
 
 export const AppLayout: React.FC = () => {
   const { user, logout } = useAuth();
+  const { units, selectedUnitId, setSelectedUnitId } = useUnit();
   const navigate = useNavigate();
   const location = useLocation();
   const today = new Date().toLocaleDateString('es-ES', { 
@@ -125,6 +127,25 @@ export const AppLayout: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 md:gap-6">
+            {/* Unit Selector */}
+            {(user?.role === 'admin' || (units && units.length > 0)) && (
+              <select
+                className="bg-accent/50 text-foreground text-sm font-semibold rounded-lg border-none focus:ring-2 focus:ring-primary px-3 py-2 cursor-pointer transition-colors max-w-[150px] sm:max-w-[200px]"
+                value={selectedUnitId || ''}
+                onChange={(e) => setSelectedUnitId(e.target.value)}
+                disabled={user?.role !== 'admin'}
+              >
+                {user?.role === 'admin' && (
+                  <option value="ALL">Todas las Unidades (Global)</option>
+                )}
+                {units.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
             <ThemeToggle />
             <Button 
               variant="destructive" 

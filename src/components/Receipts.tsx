@@ -16,11 +16,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 import { inventoryService } from '@/src/services/inventoryService';
 import { useAuth } from '@/src/contexts/AuthContext';
+import { useUnit } from '@/src/contexts/UnitContext';
 import { Product, Category } from '@/src/types';
 import { toast } from 'sonner';
 
 export const Receipts: React.FC = () => {
   const { user } = useAuth();
+  const { selectedUnitId } = useUnit();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,12 +61,16 @@ export const Receipts: React.FC = () => {
   });
 
   const handleSelectProduct = (product: Product) => {
+    if (!selectedUnitId || selectedUnitId === 'ALL') {
+      toast.error('Debe seleccionar una unidad antes de registrar una entrada.');
+      return;
+    }
     setSelectedProduct(product);
     setReceivedBoxes(0);
   };
 
   const handleRegisterReceipt = async () => {
-    if (!selectedProduct || !user) return;
+    if (!selectedProduct || !user || !selectedUnitId || selectedUnitId === 'ALL') return;
     if (receivedBoxes <= 0) {
       toast.error('La cantidad debe ser mayor que cero');
       return;
@@ -74,6 +80,7 @@ export const Receipts: React.FC = () => {
     try {
       await inventoryService.registerReceipt(
         selectedProduct.id,
+        selectedUnitId,
         user.id,
         receivedBoxes,
         selectedProduct.units_per_box || 1

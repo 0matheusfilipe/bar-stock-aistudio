@@ -9,18 +9,21 @@ import {
 import { CategoryManager } from './admin/CategoryManager';
 import { ProductManager } from './admin/ProductManager';
 import { UserManager } from './admin/UserManager';
+import { UnitManager } from './admin/UnitManager';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
+import { Store } from 'lucide-react';
 
 export const AdminPanel: React.FC = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'categories' | 'products' | 'users'>('categories');
+  const [activeTab, setActiveTab] = useState<'units' | 'categories' | 'products' | 'users'>('units');
 
   if (user?.role !== 'admin') {
     return <Navigate to="/dashboard" />;
   }
 
   const tabs = [
+    { id: 'units', label: 'Unidades', icon: Store },
     { id: 'categories', label: 'Categorías', icon: Tags },
     { id: 'products', label: 'Productos', icon: Package },
     { id: 'users', label: 'Usuarios', icon: Users },
@@ -63,6 +66,7 @@ export const AdminPanel: React.FC = () => {
         {/* Content Area */}
         <div className="flex-1 bg-card/40 rounded-3xl md:rounded-[3rem] border border-border/50 backdrop-blur-md overflow-hidden flex flex-col shadow-2xl">
           <div className="flex-1 overflow-y-auto p-6 md:p-10 lg:p-12">
+            {activeTab === 'units' && <UnitManager />}
             {activeTab === 'categories' && <CategoryManager />}
             {activeTab === 'products' && <ProductManager />}
             {activeTab === 'users' && <UserManager />}

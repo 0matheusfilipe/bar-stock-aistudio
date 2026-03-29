@@ -16,6 +16,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { Receipts } from './components/Receipts';
 import { inventoryService } from './services/inventoryService';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { UnitProvider } from './contexts/UnitContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Toaster } from 'sonner';
 import { auth } from './firebase';
@@ -86,10 +87,12 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Toaster position="top-right" richColors />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <UnitProvider>
+          <Toaster position="top-right" richColors />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </UnitProvider>
       </AuthProvider>
     </ThemeProvider>
   );

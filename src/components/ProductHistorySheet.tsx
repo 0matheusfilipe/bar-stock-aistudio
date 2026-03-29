@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { inventoryService } from '@/src/services/inventoryService';
+import { useUnit } from '@/src/contexts/UnitContext';
 import { InventoryCount } from '@/src/types';
 import { toast } from 'sonner';
 
@@ -39,6 +40,7 @@ export const ProductHistorySheet: React.FC<ProductHistorySheetProps> = ({
   onOpenChange,
   profiles
 }) => {
+  const { selectedUnitId } = useUnit();
   const [historyData, setHistoryData] = useState<InventoryCount[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +49,7 @@ export const ProductHistorySheet: React.FC<ProductHistorySheetProps> = ({
       if (!productId || !isOpen) return;
       setLoading(true);
       try {
-        const history = await inventoryService.getProductHistory(productId);
+        const history = await inventoryService.getProductHistory(productId, selectedUnitId);
         setHistoryData(history);
       } catch (error) {
         console.error('Error fetching history:', error);
@@ -58,7 +60,7 @@ export const ProductHistorySheet: React.FC<ProductHistorySheetProps> = ({
     };
 
     fetchHistory();
-  }, [productId, isOpen]);
+  }, [productId, isOpen, selectedUnitId]);
 
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>

@@ -9,6 +9,7 @@
         "name": { "type": "string", "description": "Nombre del empleado" },
         "pin": { "type": "string", "description": "PIN de 4 dígitos", "format": "numeric" },
         "role": { "type": "string", "description": "Cargo del empleado (admin o usuario)", "enum": ["admin", "user"] },
+        "unit_id": { "type": "string", "description": "ID de la unidad física asignada" },
         "deleted": { "type": "boolean", "description": "Flag de eliminación lógica" },
         "created_at": { "type": "string", "format": "date-time" }
       },
@@ -47,6 +48,7 @@
       "properties": {
         "id": { "type": "string" },
         "product_id": { "type": "string", "description": "ID del producto" },
+        "unit_id": { "type": "string", "description": "ID de la unidad física" },
         "employee_id": { "type": "string", "description": "ID del último empleado que modificó" },
         "barra_units": { "type": "integer", "description": "Cantidad en la barra" },
         "almacen_boxes": { "type": "integer", "description": "Cantidad en el almacén (cajas)" },
@@ -54,7 +56,19 @@
         "is_critical": { "type": "boolean", "description": "Alerta de falta" },
         "updated_at": { "type": "string", "format": "date-time" }
       },
-      "required": ["product_id", "employee_id", "barra_units", "almacen_boxes", "total_units", "is_critical"]
+      "required": ["product_id", "unit_id", "employee_id", "barra_units", "almacen_boxes", "total_units", "is_critical"]
+    },
+    "Unit": {
+      "title": "Unit",
+      "description": "Unidades físicas (sedes/salones)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string", "description": "Nombre de la sede física" },
+        "deleted": { "type": "boolean", "description": "Flag de eliminación lógica" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
     }
   },
   "firestore": {
@@ -73,6 +87,10 @@
     "/inventory_counts/{countId}": {
       "schema": "InventoryCount",
       "description": "Colección de conteos de inventario"
+    },
+    "/units/{unitId}": {
+      "schema": "Unit",
+      "description": "Colección de unidades físicas (sedes)"
     }
   }
 }

@@ -3,6 +3,14 @@ export interface Profile {
   name: string;
   pin: string;
   role?: 'admin' | 'user';
+  unit_id?: string;
+  deleted?: boolean;
+  created_at: string;
+}
+
+export interface Unit {
+  id: string;
+  name: string;
   deleted?: boolean;
   created_at: string;
 }
@@ -25,6 +33,7 @@ export interface Product {
 export interface InventoryCount {
   id: string;
   product_id: string;
+  unit_id: string;
   employee_id: string;
   barra_units: number;
   almacen_boxes: number;

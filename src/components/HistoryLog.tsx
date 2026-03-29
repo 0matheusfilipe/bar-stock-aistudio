@@ -14,6 +14,7 @@ import {
   Minus
 } from 'lucide-react';
 import { inventoryService } from '@/src/services/inventoryService';
+import { useUnit } from '@/src/contexts/UnitContext';
 import { InventoryCount, Product, Profile, Category } from '@/src/types';
 import { format, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -46,6 +47,7 @@ interface DailyReport {
 }
 
 export const HistoryLog: React.FC = () => {
+  const { selectedUnitId } = useUnit();
   const [reports, setReports] = useState<Record<string, DailyReport>>({});
   const [loading, setLoading] = useState(true);
   const [expandedDates, setExpandedDates] = useState<string[]>([]);
@@ -54,7 +56,7 @@ export const HistoryLog: React.FC = () => {
     const fetchData = async () => {
       try {
         const [allHistory, allProducts, allProfiles, allCategories] = await Promise.all([
-          inventoryService.getAllHistory(),
+          inventoryService.getAllHistory(selectedUnitId),
           inventoryService.getProducts(),
           inventoryService.getProfiles(),
           inventoryService.getCategories()
@@ -132,7 +134,7 @@ export const HistoryLog: React.FC = () => {
     };
 
     fetchData();
-  }, []);
+  }, [selectedUnitId]);
 
   const toggleDate = (date: string) => {
     setExpandedDates(prev => 

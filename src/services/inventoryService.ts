@@ -13,7 +13,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { Profile, Category, Product, InventoryCount } from '../types';
+import { Profile, Category, Product, InventoryCount, Unit } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -88,6 +88,33 @@ export const inventoryService = {
     }
   },
 
+  // Units
+  async getUnits(): Promise<Unit[]> {
+    const path = 'units';
+    try {
+      const snapshot = await getDocs(collection(db, path));
+      return snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Unit))
+        .filter(u => !(u as any).deleted);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async getUnitById(id: string): Promise<Unit | null> {
+    const path = `units/${id}`;
+    try {
+      const docRef = doc(db, 'units', id);
+      const snapshot = await getDoc(docRef);
+      if (!snapshot.exists()) return null;
+      return { id: snapshot.id, ...snapshot.data() } as Unit;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.GET, path);
+      return null;
+    }
+  },
+
   // Categories
   async getCategories(): Promise<Category[]> {
     const path = 'categories';
@@ -141,7 +168,7 @@ export const inventoryService = {
     }
   },
 
-  async getCategoryProgress(categoryId: string): Promise<{ total: number; counted: number }> {
+  async getCategoryProgress(categoryId: string, unitId?: string): Promise<{ total: number; counted: number }> {
     const productsPath = 'products';
     const countsPath = 'inventory_counts';
     try {
@@ -161,7 +188,11 @@ export const inventoryService = {
 
       // Get all counts
       const prodIds = activeProducts.map(p => p.id);
-      const qCounts = query(collection(db, countsPath), where('product_id', 'in', prodIds));
+      let qCounts = query(collection(db, countsPath), where('product_id', 'in', prodIds));
+      if (unitId && unitId !== 'ALL') {
+        qCounts = query(collection(db, countsPath), where('product_id', 'in', prodIds), where('unit_id', '==', unitId));
+      }
+      
       const countSnapshot = await getDocs(qCounts);
       
       // Count products that have been updated today
@@ -179,14 +210,16 @@ export const inventoryService = {
         }
       });
 
-      return { total, counted };
+      // If viewing globally, counted could exceed total if same product counted in multiple units? 
+      // It's mostly an indicator, so we cap it or just allow it. Let's cap it at total.
+      return { total, counted: Math.min(counted, total) };
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, productsPath);
       return { total: 0, counted: 0 };
     }
   },
 
-  async getCountsByCategory(categoryId: string): Promise<InventoryCount[]> {
+  async getCountsByCategory(categoryId: string, unitId?: string): Promise<InventoryCount[]> {
     const productsPath = 'products';
     const countsPath = 'inventory_counts';
     try {
@@ -203,7 +236,10 @@ export const inventoryService = {
       if (activeProducts.length === 0) return [];
 
       const prodIds = activeProducts.map(p => p.id);
-      const qCounts = query(collection(db, countsPath), where('product_id', 'in', prodIds));
+      let qCounts = query(collection(db, countsPath), where('product_id', 'in', prodIds));
+      if (unitId && unitId !== 'ALL') {
+        qCounts = query(collection(db, countsPath), where('product_id', 'in', prodIds), where('unit_id', '==', unitId));
+      }
       const countSnapshot = await getDocs(qCounts);
       
       return countSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryCount));
@@ -214,9 +250,13 @@ export const inventoryService = {
   },
 
   // Inventory Counts
-  subscribeToCounts(callback: (counts: InventoryCount[]) => void) {
+  subscribeToCounts(unitId: string | undefined, callback: (counts: InventoryCount[]) => void) {
     const path = 'inventory_counts';
-    return onSnapshot(collection(db, path), (snapshot) => {
+    let q = query(collection(db, path));
+    if (unitId && unitId !== 'ALL') {
+      q = query(collection(db, path), where('unit_id', '==', unitId));
+    }
+    return onSnapshot(q, (snapshot) => {
       const counts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryCount));
       callback(counts);
     }, (error) => {
@@ -231,8 +271,10 @@ export const inventoryService = {
       const batch = writeBatch(db);
       
       for (const count of counts) {
-        // Upsert in current counts: Use product_id as the document ID
-        const docRef = doc(db, path, count.product_id);
+        if (!count.unit_id) continue;
+        const docId = `${count.product_id}_${count.unit_id}`;
+        // Upsert in current counts
+        const docRef = doc(db, path, docId);
         batch.set(docRef, {
           ...count,
           updated_at: serverTimestamp()
@@ -255,6 +297,7 @@ export const inventoryService = {
 
   async updateCount(
     productId: string, 
+    unitId: string,
     employeeId: string, 
     barraUnits: number, 
     almacenBoxes: number, 
@@ -262,11 +305,13 @@ export const inventoryService = {
     faltante: number,
     isCritical: boolean
   ) {
+    if (!unitId || unitId === 'ALL') throw new Error("A valid unit is required to update counts.");
     const path = 'inventory_counts';
     const historyPath = 'inventory_history';
     try {
       const data = {
         product_id: productId,
+        unit_id: unitId,
         employee_id: employeeId,
         barra_units: Number(barraUnits) || 0,
         almacen_boxes: Number(almacenBoxes) || 0,
@@ -277,8 +322,10 @@ export const inventoryService = {
         updated_at: serverTimestamp()
       };
 
+      const docId = `${productId}_${unitId}`;
+
       // Upsert in current counts
-      await setDoc(doc(db, path, productId), data, { merge: true });
+      await setDoc(doc(db, path, docId), data, { merge: true });
 
       // Add to history log
       await addDoc(collection(db, historyPath), data);
@@ -289,15 +336,18 @@ export const inventoryService = {
 
   async registerReceipt(
     productId: string,
+    unitId: string,
     employeeId: string,
     receivedBoxes: number,
     unitsPerBox: number
   ) {
+    if (!unitId || unitId === 'ALL') throw new Error("A valid unit is required to register receipts.");
     const path = 'inventory_counts';
     const historyPath = 'inventory_history';
     try {
+      const docId = `${productId}_${unitId}`;
       // Get current count
-      const currentDoc = await getDoc(doc(db, path, productId));
+      const currentDoc = await getDoc(doc(db, path, docId));
       
       let barraUnits = 0;
       let almacenBoxes = 0;
@@ -316,6 +366,7 @@ export const inventoryService = {
 
       const data = {
         product_id: productId,
+        unit_id: unitId,
         employee_id: employeeId,
         barra_units: barraUnits,
         almacen_boxes: newAlmacenBoxes,
@@ -327,7 +378,7 @@ export const inventoryService = {
       };
 
       // Upsert in current counts
-      await setDoc(doc(db, path, productId), data, { merge: true });
+      await setDoc(doc(db, path, docId), data, { merge: true });
 
       // Add to history log
       await addDoc(collection(db, historyPath), data);
@@ -336,13 +387,20 @@ export const inventoryService = {
     }
   },
 
-  async getProductHistory(productId: string): Promise<InventoryCount[]> {
+  async getProductHistory(productId: string, unitId?: string): Promise<InventoryCount[]> {
     const path = 'inventory_history';
     try {
-      const q = query(
+      let q = query(
         collection(db, path), 
         where('product_id', '==', productId)
       );
+      if (unitId && unitId !== 'ALL') {
+        q = query(
+          collection(db, path), 
+          where('product_id', '==', productId),
+          where('unit_id', '==', unitId)
+        );
+      }
       const snapshot = await getDocs(q);
       
       const history = snapshot.docs.map(doc => ({ 
@@ -361,10 +419,14 @@ export const inventoryService = {
     }
   },
 
-  async getAllHistory(): Promise<InventoryCount[]> {
+  async getAllHistory(unitId?: string): Promise<InventoryCount[]> {
     const path = 'inventory_history';
     try {
-      const snapshot = await getDocs(collection(db, path));
+      let q = query(collection(db, path));
+      if (unitId && unitId !== 'ALL') {
+        q = query(collection(db, path), where('unit_id', '==', unitId));
+      }
+      const snapshot = await getDocs(q);
       const history = snapshot.docs.map(doc => ({ 
         id: doc.id, 
         ...doc.data() 
@@ -482,6 +544,39 @@ export const inventoryService = {
     }
   },
 
+  async createUnit(name: string): Promise<string> {
+    const path = 'units';
+    try {
+      const docRef = await addDoc(collection(db, path), {
+        name,
+        deleted: false,
+        created_at: serverTimestamp()
+      });
+      return docRef.id;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, path);
+      return '';
+    }
+  },
+
+  async updateUnit(id: string, name: string): Promise<void> {
+    const path = `units/${id}`;
+    try {
+      await updateDoc(doc(db, 'units', id), { name });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
+  async deleteUnit(id: string): Promise<void> {
+    const path = `units/${id}`;
+    try {
+      await updateDoc(doc(db, 'units', id), { deleted: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
+    }
+  },
+
   // Seed Data
   async seedInitialData() {
     try {
@@ -517,6 +612,22 @@ export const inventoryService = {
 
       console.log('Seeding initial inventory data...');
 
+      // Create initial Unit
+      const unitsPath = 'units';
+      const qUnit = query(collection(db, unitsPath), where('name', '==', 'Sede Principal'));
+      const unitSnapshot = await getDocs(qUnit);
+      let mainUnitId = '';
+      if (unitSnapshot.empty) {
+        const unitRef = await addDoc(collection(db, unitsPath), {
+          name: 'Sede Principal',
+          deleted: false,
+          created_at: serverTimestamp()
+        });
+        mainUnitId = unitRef.id;
+      } else {
+        mainUnitId = unitSnapshot.docs[0].id;
+      }
+
       // 3. Ensure Carlos exists for initial counts
       const qCarlos = query(collection(db, path), where('name', '==', 'Carlos'));
       const carlosSnapshot = await getDocs(qCarlos);
@@ -527,6 +638,7 @@ export const inventoryService = {
           name: 'Carlos',
           pin: '1234',
           role: 'user',
+          unit_id: mainUnitId,
           deleted: false,
           created_at: serverTimestamp()
         });
@@ -580,8 +692,10 @@ export const inventoryService = {
         });
 
         // Initial empty count
-        await addDoc(collection(db, 'inventory_counts'), {
+        const docId = `${prodRef.id}_${mainUnitId}`;
+        await setDoc(doc(db, 'inventory_counts', docId), {
           product_id: prodRef.id,
+          unit_id: mainUnitId,
           employee_id: carlosId,
           barra_units: 0,
           almacen_boxes: 0,

@@ -31,6 +31,7 @@ import { Category, Product, InventoryCount, Profile } from '@/src/types';
 import { ProductListItem } from './ProductListItem';
 import { ProductHistorySheet } from './ProductHistorySheet';
 import { useAuth } from '@/src/contexts/AuthContext';
+import { useUnit } from '@/src/contexts/UnitContext';
 import { NumericKeypad } from './NumericKeypad';
 import { toast } from 'sonner';
 
@@ -46,6 +47,7 @@ export const CategoryDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { selectedUnitId } = useUnit();
   
   const [category, setCategory] = useState<Category | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -73,7 +75,7 @@ export const CategoryDetail: React.FC = () => {
           inventoryService.getCategoryById(id),
           inventoryService.getProductsByCategory(id),
           inventoryService.getProfiles(),
-          inventoryService.getCountsByCategory(id)
+          inventoryService.getCountsByCategory(id, selectedUnitId)
         ]);
         
         setCategory(cat);
@@ -142,15 +144,15 @@ export const CategoryDetail: React.FC = () => {
     };
 
     fetchData();
-  }, [id]);
+  }, [id, selectedUnitId]);
 
   // Auto-save to localStorage whenever state changes
   useEffect(() => {
-    if (!id || loading || Object.keys(productStates).length === 0) return;
+    if (!id || !selectedUnitId || loading || Object.keys(productStates).length === 0) return;
     
-    const draftKey = `inventory_draft_category_${id}`;
+    const draftKey = `inventory_draft_category_${id}_${selectedUnitId}`;
     localStorage.setItem(draftKey, JSON.stringify(productStates));
-  }, [productStates, id, loading]);
+  }, [productStates, id, selectedUnitId, loading]);
 
   const handleUpdateProduct = (productId: string, field: keyof ProductState, value: any) => {
     setProductStates(prev => ({
@@ -219,6 +221,10 @@ export const CategoryDetail: React.FC = () => {
       toast.error('Usuario no autenticado.');
       return;
     }
+    if (!selectedUnitId || selectedUnitId === 'ALL') {
+      toast.error('Debe seleccionar una unidad específica para realizar un conteo.');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -232,6 +238,7 @@ export const CategoryDetail: React.FC = () => {
           const almacen = Number(state.almacen) || 0;
           return {
             product_id: productId,
+            unit_id: selectedUnitId,
             employee_id: user.id,
             barra_units: barra,
             almacen_boxes: almacen,
@@ -249,7 +256,7 @@ export const CategoryDetail: React.FC = () => {
       await inventoryService.saveCounts(payload);
       
       // Clear draft after successful save
-      const draftKey = `inventory_draft_category_${id}`;
+      const draftKey = `inventory_draft_category_${id}_${selectedUnitId}`;
       localStorage.removeItem(draftKey);
       
       toast.success('¡Conteo guardado con éxito!');

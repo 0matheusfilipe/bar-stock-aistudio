@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { inventoryService } from '@/src/services/inventoryService';
 import { Category, Product, InventoryCount } from '@/src/types';
 import { useAuth } from '@/src/contexts/AuthContext';
+import { useUnit } from '@/src/contexts/UnitContext';
 import { Button } from '@/src/components/ui/button';
 import { 
   Card, 
@@ -53,9 +54,9 @@ const KpiCard: React.FC<KpiCardProps> = ({ icon, label, value, sub, accent = 'te
   </Card>
 );
 
-// --- Main Component ---
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const { selectedUnitId } = useUnit();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [currentCounts, setCurrentCounts] = useState<InventoryCount[]>([]);
@@ -89,33 +90,42 @@ export const Dashboard: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    // Carregar os dados base 1 vez
     const loadData = async () => {
       try {
-        const [cats, prods, hist] = await Promise.all([
+        const [cats, prods] = await Promise.all([
           inventoryService.getCategories(),
-          inventoryService.getProducts(),
-          inventoryService.getAllHistory()
+          inventoryService.getProducts()
         ]);
         setCategories(cats);
         setProducts(prods);
-        setReceiptHistory(hist.filter(h => h.type === 'receipt'));
-        
-        // default: all categories
       } catch (err) {
         console.error('Data load error:', err);
       } finally {
         setLoading(false);
       }
     };
-
     loadData();
+  }, []);
 
-    // Live subscription for counts
-    const unsub = inventoryService.subscribeToCounts((counts) => {
+  useEffect(() => {
+    // Carregar histórico quando mudar a unidade
+    const fetchHistory = async () => {
+      try {
+        const hist = await inventoryService.getAllHistory(selectedUnitId);
+        setReceiptHistory(hist.filter(h => h.type === 'receipt'));
+      } catch (err) {
+        console.error('Data load error:', err);
+      }
+    };
+    fetchHistory();
+
+    // Live subscription for counts when unit changes
+    const unsub = inventoryService.subscribeToCounts(selectedUnitId, (counts) => {
       setCurrentCounts(counts);
     });
     return () => unsub();
-  }, []);
+  }, [selectedUnitId]);
 
   // Map counts to products
   const countsMap = useMemo(() => {
@@ -154,6 +164,10 @@ export const Dashboard: React.FC = () => {
   }, [receiptHistory, currentCounts]);
 
   const handleProductClick = (product: Product) => {
+    if (!selectedUnitId || selectedUnitId === 'ALL') {
+      import('sonner').then(m => m.toast.error('Debe seleccionar una unidad específica para registrar inventario, no la vista global.'));
+      return;
+    }
     const count = countsMap.get(product.id);
     setModalData({
       barra: count?.barra_units || 0,
@@ -165,12 +179,13 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!selectedProduct || !user) return;
+    if (!selectedProduct || !user || !selectedUnitId || selectedUnitId === 'ALL') return;
     setSaving(true);
     try {
       const totalUnits = Number(modalData.barra) + (Number(modalData.almacen) * (selectedProduct.units_per_box || 1));
       await inventoryService.updateCount(
         selectedProduct.id,
+        selectedUnitId,
         user.id,
         modalData.barra,
         modalData.almacen,

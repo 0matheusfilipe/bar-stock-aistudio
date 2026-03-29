@@ -62,6 +62,12 @@ service cloud.firestore {
       return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              isValidPin(data.pin) &&
              (!('role' in data) || data.role == 'admin' || data.role == 'user') &&
+             (!('unit_id' in data) || data.unit_id is string) &&
+             (!('deleted' in data) || data.deleted is bool);
+    }
+
+    function isValidUnit(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              (!('deleted' in data) || data.deleted is bool);
     }
 
@@ -79,6 +85,7 @@ service cloud.firestore {
 
     function isValidInventoryCount(data) {
       return data.product_id is string &&
+             data.unit_id is string &&
              data.employee_id is string &&
              data.barra_units is int && data.barra_units >= 0 &&
              data.almacen_boxes is int && data.almacen_boxes >= 0 &&
@@ -96,6 +103,13 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && isValidProfile(request.resource.data);
       allow update: if isAuthenticated() && (isValidProfile(request.resource.data) || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted']) && request.resource.data.deleted == true));
+      allow delete: if isAdmin();
+    }
+
+    match /units/{unitId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidUnit(request.resource.data) && isAdmin();
+      allow update: if isAuthenticated() && isAdmin() && (isValidUnit(request.resource.data) || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted']) && request.resource.data.deleted == true));
       allow delete: if isAdmin();
     }
 

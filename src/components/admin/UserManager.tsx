@@ -14,10 +14,12 @@ import { Button } from '@/components/ui/button';
 import { inventoryService } from '@/src/services/inventoryService';
 import { Profile } from '@/src/types';
 import { toast } from 'sonner';
+import { useUnit } from '@/src/contexts/UnitContext';
 
 import { ConfirmModal } from '../ConfirmModal';
 
 export const UserManager: React.FC = () => {
+  const { units } = useUnit();
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -29,7 +31,8 @@ export const UserManager: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     pin: '',
-    role: 'user' as 'admin' | 'user'
+    role: 'user' as 'admin' | 'user',
+    unit_id: ''
   });
 
   const fetchUsers = async () => {
@@ -53,10 +56,18 @@ export const UserManager: React.FC = () => {
       toast.error('Complete el nombre y un PIN de 4 dígitos.');
       return;
     }
+    if (formData.role === 'user' && !formData.unit_id) {
+      toast.error('Debe seleccionar una unidad para el empleado.');
+      return;
+    }
     setSaving(true);
     try {
-      await inventoryService.createProfile(formData);
-      setFormData({ name: '', pin: '', role: 'user' });
+      const payload: any = { ...formData };
+      if (payload.role === 'admin') {
+        payload.unit_id = ''; // Admins don't have to be tied to one unit
+      }
+      await inventoryService.createProfile(payload);
+      setFormData({ name: '', pin: '', role: 'user', unit_id: units[0]?.id || '' });
       setIsAdding(false);
       toast.success('¡Usuario añadido con éxito!');
       fetchUsers();
@@ -73,9 +84,17 @@ export const UserManager: React.FC = () => {
       toast.error('Complete el nombre y un PIN de 4 dígitos.');
       return;
     }
+    if (formData.role === 'user' && !formData.unit_id) {
+      toast.error('Debe seleccionar una unidad para el empleado.');
+      return;
+    }
     setSaving(true);
     try {
-      await inventoryService.updateProfile(id, formData);
+      const payload: any = { ...formData };
+      if (payload.role === 'admin') {
+        payload.unit_id = null; // Remove lock
+      }
+      await inventoryService.updateProfile(id, payload);
       setEditingId(null);
       toast.success('¡Usuario actualizado con éxito!');
       fetchUsers();
@@ -123,7 +142,7 @@ export const UserManager: React.FC = () => {
         </div>
         <Button 
           onClick={() => {
-            setFormData({ name: '', pin: '', role: 'user' });
+            setFormData({ name: '', pin: '', role: 'user', unit_id: units[0]?.id || '' });
             setIsAdding(true);
           }}
           className="h-12 px-6 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-bold uppercase tracking-widest text-xs gap-2"
@@ -177,6 +196,21 @@ export const UserManager: React.FC = () => {
                   <option value="admin">Gerente (Admin)</option>
                 </select>
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Unidad</label>
+                <select
+                  value={formData.unit_id || ''}
+                  onChange={(e) => setFormData({ ...formData, unit_id: e.target.value })}
+                  disabled={formData.role === 'admin'}
+                  className="w-full h-14 px-6 bg-card border border-border rounded-2xl text-lg font-bold text-foreground disabled:opacity-50"
+                >
+                  {formData.role === 'admin' && <option value="">Global (Todas)</option>}
+                  {units.map((unit) => (
+                    <option key={unit.id} value={unit.id}>{unit.name}</option>
+                  ))}
+                  {units.length === 0 && <option value="" disabled>No hay unidades creadas</option>}
+                </select>
+              </div>
             </div>
             <div className="flex justify-end gap-4">
               <Button 
@@ -218,6 +252,11 @@ export const UserManager: React.FC = () => {
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${u.role === 'admin' ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
                     {u.role === 'admin' ? 'Administrador' : 'Empleado'}
                   </span>
+                  {u.role === 'user' && (
+                    <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md bg-accent text-muted-foreground">
+                      {units.find(un => un.id === u.unit_id)?.name || 'Sin Unidad'}
+                    </span>
+                  )}
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-bold uppercase tracking-widest">
                     <Key size={10} />
                     PIN: ****
@@ -233,7 +272,8 @@ export const UserManager: React.FC = () => {
                   setFormData({
                     name: u.name || '',
                     pin: u.pin || '',
-                    role: u.role || 'user'
+                    role: u.role || 'user',
+                    unit_id: u.unit_id || ''
                   });
                   setIsAdding(false);
                 }}

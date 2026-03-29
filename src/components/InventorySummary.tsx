@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { inventoryService } from '@/src/services/inventoryService';
+import { useUnit } from '@/src/contexts/UnitContext';
 import { Category, Product, InventoryCount } from '@/src/types';
 import { 
   Table, 
@@ -34,6 +35,7 @@ interface SummaryItem {
 export const InventorySummary: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { selectedUnitId } = useUnit();
   
   const [category, setCategory] = useState<Category | null>(null);
   const [summary, setSummary] = useState<SummaryItem[]>([]);
@@ -49,13 +51,13 @@ export const InventorySummary: React.FC = () => {
         const [cat, prods, allHistory] = await Promise.all([
           inventoryService.getCategoryById(id),
           inventoryService.getProductsByCategory(id),
-          inventoryService.getAllHistory()
+          inventoryService.getAllHistory(selectedUnitId)
         ]);
         
         setCategory(cat);
         
         // Subscribe to counts and filter
-        unsubscribe = inventoryService.subscribeToCounts((allCounts) => {
+        unsubscribe = inventoryService.subscribeToCounts(selectedUnitId, (allCounts) => {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
 
@@ -106,7 +108,7 @@ export const InventorySummary: React.FC = () => {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [id]);
+  }, [id, selectedUnitId]);
 
   if (loading) {
     return (
