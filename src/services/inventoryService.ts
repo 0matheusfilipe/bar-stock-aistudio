@@ -6,7 +6,6 @@ import {
   doc, 
   query, 
   where, 
-  serverTimestamp, 
   onSnapshot,
   updateDoc,
   getDoc,
@@ -277,7 +276,7 @@ export const inventoryService = {
         const docRef = doc(db, path, docId);
         batch.set(docRef, {
           ...count,
-          updated_at: serverTimestamp()
+          updated_at: new Date().toISOString()
         }, { merge: true });
 
         // Add to history log: Use random ID
@@ -285,7 +284,7 @@ export const inventoryService = {
         batch.set(historyRef, {
           ...count,
           type: 'count',
-          updated_at: serverTimestamp()
+          updated_at: new Date().toISOString()
         });
       }
       
@@ -319,7 +318,7 @@ export const inventoryService = {
         faltante: Number(faltante) || 0,
         is_critical: Boolean(isCritical),
         type: 'count',
-        updated_at: serverTimestamp()
+        updated_at: new Date().toISOString()
       };
 
       const docId = `${productId}_${unitId}`;
@@ -374,7 +373,7 @@ export const inventoryService = {
         is_critical: isCritical,
         type: 'receipt',
         received_boxes: Number(receivedBoxes) || 0,
-        updated_at: serverTimestamp()
+        updated_at: new Date().toISOString()
       };
 
       // Upsert in current counts
@@ -450,7 +449,7 @@ export const inventoryService = {
       const docRef = await addDoc(collection(db, path), {
         name,
         deleted: false,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
       return docRef.id;
     } catch (error) {
@@ -484,7 +483,7 @@ export const inventoryService = {
       const docRef = await addDoc(collection(db, path), {
         ...data,
         deleted: false,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
       return docRef.id;
     } catch (error) {
@@ -517,7 +516,7 @@ export const inventoryService = {
       const docRef = await addDoc(collection(db, path), {
         ...data,
         deleted: false,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
       return docRef.id;
     } catch (error) {
@@ -550,7 +549,7 @@ export const inventoryService = {
       const docRef = await addDoc(collection(db, path), {
         name,
         deleted: false,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
       return docRef.id;
     } catch (error) {
@@ -594,7 +593,7 @@ export const inventoryService = {
           pin: '0000',
           role: 'admin',
           deleted: false,
-          created_at: serverTimestamp()
+          created_at: new Date().toISOString()
         });
         juniorId = docRef.id;
       } else {
@@ -621,7 +620,7 @@ export const inventoryService = {
         const unitRef = await addDoc(collection(db, unitsPath), {
           name: 'Sede Principal',
           deleted: false,
-          created_at: serverTimestamp()
+          created_at: new Date().toISOString()
         });
         mainUnitId = unitRef.id;
       } else {
@@ -640,7 +639,7 @@ export const inventoryService = {
           role: 'user',
           unit_id: mainUnitId,
           deleted: false,
-          created_at: serverTimestamp()
+          created_at: new Date().toISOString()
         });
         carlosId = docRef.id;
       } else {
@@ -651,27 +650,27 @@ export const inventoryService = {
       const catCervezas = await addDoc(collection(db, 'categories'), {
         name: 'Cervezas',
         deleted: false,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
       const catRefrescos = await addDoc(collection(db, 'categories'), {
         name: 'Refrescos',
         deleted: false,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
       const catVinos = await addDoc(collection(db, 'categories'), {
         name: 'Vinos',
         deleted: false,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
       const catEspirituosos = await addDoc(collection(db, 'categories'), {
         name: 'Espirituosos',
         deleted: false,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
       const catAgua = await addDoc(collection(db, 'categories'), {
         name: 'Agua y Zumos',
         deleted: false,
-        created_at: serverTimestamp()
+        created_at: new Date().toISOString()
       });
 
       // Products
@@ -688,7 +687,7 @@ export const inventoryService = {
       for (const p of products) {
         const prodRef = await addDoc(collection(db, 'products'), {
           ...p,
-          created_at: serverTimestamp()
+          created_at: new Date().toISOString()
         });
 
         // Initial empty count
@@ -701,7 +700,7 @@ export const inventoryService = {
           almacen_boxes: 0,
           total_units: 0,
           is_critical: false,
-          updated_at: serverTimestamp()
+          updated_at: new Date().toISOString()
         });
       }
 
