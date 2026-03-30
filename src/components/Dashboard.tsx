@@ -12,7 +12,8 @@ import {
   X,
   ChevronDown,
   CalendarDays,
-  PackageSearch
+  PackageSearch,
+  FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { inventoryService } from '@/src/services/inventoryService';
@@ -29,6 +30,7 @@ import {
 } from '@/src/components/ui/card';
 import { Input } from '@/src/components/ui/input';
 import { Label } from '@/src/components/ui/label';
+import { generateInventoryPDF } from '@/src/utils/pdfExport';
 
 // --- Sub-components ---
 interface KpiCardProps {
@@ -56,7 +58,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ icon, label, value, sub, accent = 'te
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { selectedUnitId } = useUnit();
+  const { selectedUnitId, units } = useUnit();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [currentCounts, setCurrentCounts] = useState<InventoryCount[]>([]);
@@ -225,6 +227,28 @@ export const Dashboard: React.FC = () => {
             <Calculator size={14} className="text-primary" /> Panel de Control de Existencias
           </p>
         </div>
+        <Button
+          onClick={() => {
+            const rows = filteredProducts.map(p => ({
+              product: p,
+              category: categories.find(c => c.id === p.category_id) || { id: '', name: 'Sin categoría', created_at: '' },
+              count: countsMap.get(p.id),
+            }));
+            const unitObj = units.find(u => u.id === selectedUnitId);
+            generateInventoryPDF(rows, {
+              unitName: selectedUnitId === 'ALL' ? 'Todas' : unitObj?.name || selectedUnitId,
+              categoryName: selectedCategory === 'all' ? undefined : categories.find(c => c.id === selectedCategory)?.name,
+              dateFrom,
+              dateTo,
+              generatedBy: user?.name,
+            });
+          }}
+          variant="outline"
+          className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest text-xs gap-3 border-primary/30 text-primary hover:bg-primary/10 active:scale-95 transition-all shrink-0"
+        >
+          <FileDown size={20} />
+          Exportar PDF
+        </Button>
       </div>
 
       {/* KPI Cards */}
