@@ -13,7 +13,8 @@ import {
   ChevronDown,
   CalendarDays,
   PackageSearch,
-  FileDown
+  FileDown,
+  Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { inventoryService } from '@/src/services/inventoryService';
@@ -69,6 +70,7 @@ export const Dashboard: React.FC = () => {
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
@@ -155,8 +157,12 @@ export const Dashboard: React.FC = () => {
         return true;
       });
     }
+    if (searchTerm.trim() !== '') {
+      const lowerSearch = searchTerm.toLowerCase();
+      result = result.filter(p => p.name.toLowerCase().includes(lowerSearch));
+    }
     return result;
-  }, [products, selectedCategory, countsMap, dateFrom, dateTo]);
+  }, [products, selectedCategory, countsMap, dateFrom, dateTo, searchTerm]);
 
   const stats = useMemo(() => {
     const entries = receiptHistory.length;
@@ -276,11 +282,36 @@ export const Dashboard: React.FC = () => {
         />
       </div>
 
-      {/* Filters Row: Category Dropdown + Date Range */}
-      <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-end">
+      {/* Filters Row: Category Dropdown + Date Range + Search */}
+      <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-end">
         
+        {/* Search Input */}
+        <div className="flex-1 md:max-w-xs">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Search size={12} /> Buscar Producto
+          </label>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Ej. Mahou 5 Estrellas"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full h-12 bg-card border-border rounded-2xl pl-12 pr-4 text-sm font-bold text-foreground focus-visible:ring-primary focus-visible:border-primary transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Category Dropdown */}
-        <div className="flex-1" ref={dropdownRef}>
+        <div className="flex-1 md:max-w-[200px]" ref={dropdownRef}>
           <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
             <Filter size={12} /> Categoria
           </label>
@@ -358,10 +389,17 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Product List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <AnimatePresence mode='popLayout'>
-          {filteredProducts.map((p) => {
-            const count = countsMap.get(p.id);
+      {filteredProducts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center rounded-[3rem] border border-dashed border-border/50 bg-card/30">
+          <PackageSearch className="w-16 h-16 text-muted-foreground/50 mb-4" />
+          <h3 className="text-xl font-bold text-foreground">Ningún producto encontrado</h3>
+          <p className="text-muted-foreground mt-2 max-w-sm">No se encontraron productos que coincidan con la búsqueda actual. Intenta cambiar los filtros.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <AnimatePresence mode='popLayout'>
+            {filteredProducts.map((p) => {
+              const count = countsMap.get(p.id);
             return (
               <motion.div
                 key={p.id}
@@ -414,6 +452,7 @@ export const Dashboard: React.FC = () => {
           })}
         </AnimatePresence>
       </div>
+      )}
 
       {/* Edit Modal / Slide-over */}
       <AnimatePresence>

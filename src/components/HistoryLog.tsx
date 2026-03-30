@@ -11,7 +11,9 @@ import {
   CheckCircle2,
   TrendingDown,
   TrendingUp,
-  Minus
+  Minus,
+  Search,
+  X
 } from 'lucide-react';
 import { inventoryService } from '@/src/services/inventoryService';
 import { useUnit } from '@/src/contexts/UnitContext';
@@ -25,6 +27,8 @@ import {
   CardContent 
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 interface DailyProductCount {
   productId: string;
@@ -51,6 +55,8 @@ export const HistoryLog: React.FC = () => {
   const [reports, setReports] = useState<Record<string, DailyReport>>({});
   const [loading, setLoading] = useState(true);
   const [expandedDates, setExpandedDates] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [visibleDays, setVisibleDays] = useState(7);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -150,9 +156,17 @@ export const HistoryLog: React.FC = () => {
     );
   }
 
-  const sortedDates = Object.keys(reports).sort((a, b) => b.localeCompare(a));
+  const filteredDates = Object.keys(reports).sort((a, b) => b.localeCompare(a)).filter(date => {
+    if (searchTerm.trim() !== '') {
+      const lowerSearch = searchTerm.toLowerCase();
+      return Object.values(reports[date].products).some((p: any) => p.productName.toLowerCase().includes(lowerSearch));
+    }
+    return true;
+  });
 
-  if (sortedDates.length === 0) {
+  const visibleDates = filteredDates.slice(0, visibleDays);
+
+  if (Object.keys(reports).length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center gap-4">
         <div className="w-20 h-20 bg-card rounded-3xl flex items-center justify-center text-muted-foreground mb-4">
@@ -165,21 +179,60 @@ export const HistoryLog: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center gap-3">
-        <History className="text-muted-foreground" size={28} />
-        <h2 className="text-3xl font-bold tracking-tight text-foreground">Informes de Inventario</h2>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="flex items-center gap-3">
+          <History className="text-muted-foreground" size={28} />
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Informes de Inventario</h2>
+        </div>
+
+        {/* Search Input */}
+        <div className="w-full md:w-auto md:max-w-xs flex-1">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Search size={12} /> Buscar Producto en Historial
+          </label>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Ej. Mahou 5 Estrellas"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full h-12 bg-card border-border rounded-2xl pl-12 pr-4 text-sm font-bold text-foreground focus-visible:ring-primary focus-visible:border-primary transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="space-y-6">
-        {sortedDates.map(date => {
+        {filteredDates.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground font-bold">
+            No se encontraron resultados para la búsqueda.
+          </div>
+        ) : (
+          visibleDates.map(date => {
           const isExpanded = expandedDates.includes(date);
           const formattedDate = format(new Date(date + 'T12:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
           const report = reports[date];
           
-          // Group products by category for display
+          // Filter products inside the date and group by category for display
+          const productsInDate = Object.values(report.products).filter((p: any) => {
+             if (searchTerm.trim() !== '') {
+               return p.productName.toLowerCase().includes(searchTerm.toLowerCase());
+             }
+             return true;
+          });
+
           const productsByCategory: Record<string, { categoryName: string, products: DailyProductCount[] }> = {};
-          Object.values(report.products).forEach((p: DailyProductCount) => {
+          productsInDate.forEach((p: DailyProductCount) => {
             if (!productsByCategory[p.categoryId]) {
               productsByCategory[p.categoryId] = {
                 categoryName: p.categoryName,
@@ -199,7 +252,7 @@ export const HistoryLog: React.FC = () => {
                   <CalendarIcon className="text-muted-foreground" size={20} />
                   <span className="font-bold capitalize text-foreground">{formattedDate}</span>
                   <Badge variant="outline" className="ml-2 bg-muted border-border text-muted-foreground">
-                    {Object.keys(report.products).length} productos contados
+                    {productsInDate.length} productos
                   </Badge>
                 </div>
                 {isExpanded ? <ChevronUp className="text-foreground" size={20} /> : <ChevronDown className="text-foreground" size={20} />}
@@ -288,8 +341,20 @@ export const HistoryLog: React.FC = () => {
               )}
             </div>
           );
-        })}
+        }))}
       </div>
+
+      {filteredDates.length > visibleDays && (
+        <div className="flex justify-center mt-12 pb-8">
+          <Button 
+            variant="outline"
+            onClick={() => setVisibleDays(prev => prev + 7)}
+            className="h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-xs gap-3 border-border hover:bg-muted active:scale-95 transition-all text-muted-foreground"
+          >
+            Mostrar 7 días más
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
