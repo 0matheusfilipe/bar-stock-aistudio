@@ -5,6 +5,7 @@ import {
   User as UserIcon, 
   ChevronDown, 
   ChevronUp,
+  CalendarDays,
   Beer,
   CupSoda,
   AlertTriangle,
@@ -57,6 +58,8 @@ export const HistoryLog: React.FC = () => {
   const [expandedDates, setExpandedDates] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [visibleDays, setVisibleDays] = useState(7);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -157,6 +160,9 @@ export const HistoryLog: React.FC = () => {
   }
 
   const filteredDates = Object.keys(reports).sort((a, b) => b.localeCompare(a)).filter(date => {
+    if (dateFrom && date < dateFrom) return false;
+    if (dateTo && date > dateTo) return false;
+
     if (searchTerm.trim() !== '') {
       const lowerSearch = searchTerm.toLowerCase();
       return Object.values(reports[date].products).some((p: any) => p.productName.toLowerCase().includes(lowerSearch));
@@ -180,34 +186,71 @@ export const HistoryLog: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
         <div className="flex items-center gap-3">
           <History className="text-muted-foreground" size={28} />
           <h2 className="text-3xl font-bold tracking-tight text-foreground">Informes de Inventario</h2>
         </div>
 
-        {/* Search Input */}
-        <div className="w-full md:w-auto md:max-w-xs flex-1">
-          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
-            <Search size={12} /> Buscar Producto en Historial
-          </label>
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
-            <Input
-              type="text"
-              placeholder="Ej. Mahou 5 Estrellas"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-12 bg-card border-border rounded-2xl pl-12 pr-4 text-sm font-bold text-foreground focus-visible:ring-primary focus-visible:border-primary transition-all"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X size={16} />
-              </button>
-            )}
+        {/* Filters Container */}
+        <div className="flex flex-col sm:flex-row gap-4 flex-1 lg:justify-end">
+          {/* Date Range */}
+          <div className="flex-1 lg:max-w-xs">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
+              <CalendarDays size={12} /> Período
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="w-full h-12 bg-card border border-border rounded-2xl px-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all cursor-pointer appearance-none"
+                />
+              </div>
+              <span className="text-muted-foreground font-black text-xs shrink-0">hasta</span>
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="w-full h-12 bg-card border border-border rounded-2xl px-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none transition-all cursor-pointer appearance-none"
+                />
+              </div>
+              {(dateFrom || dateTo) && (
+                <button
+                  onClick={() => { setDateFrom(''); setDateTo(''); }}
+                  className="h-12 w-12 shrink-0 flex items-center justify-center rounded-2xl border border-border hover:bg-destructive/10 hover:border-destructive/30 text-muted-foreground hover:text-destructive transition-all"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Search Input */}
+          <div className="w-full sm:w-auto lg:max-w-xs flex-1">
+            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2 flex items-center gap-1.5">
+              <Search size={12} /> Buscar Producto
+            </label>
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5 pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Ej. Mahou 5 Estrellas"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full h-12 bg-card border-border rounded-2xl pl-12 pr-4 text-sm font-bold text-foreground focus-visible:ring-primary focus-visible:border-primary transition-all"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
