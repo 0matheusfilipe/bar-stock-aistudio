@@ -119,7 +119,7 @@ export function generateInventoryPDF(
 
   const tableData = rows.map(row => {
     const count = row.count;
-    const status = !count ? 'Pendiente' : count.is_critical ? '⚠ Crítico' : '✓ OK';
+    const status = !count ? 'Pendiente' : count.is_critical ? 'Crítico' : 'OK';
     const lastUpdate = count?.updated_at
       ? new Date(typeof count.updated_at === 'string' ? count.updated_at : (count.updated_at as any).toDate()).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
       : '—';
