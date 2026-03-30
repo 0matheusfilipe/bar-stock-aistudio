@@ -263,6 +263,21 @@ export const inventoryService = {
     });
   },
 
+  async getCounts(unitId?: string): Promise<InventoryCount[]> {
+    const path = 'inventory_counts';
+    try {
+      let q = query(collection(db, path));
+      if (unitId && unitId !== 'ALL') {
+        q = query(collection(db, path), where('unit_id', '==', unitId));
+      }
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryCount));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
   async saveCounts(counts: Omit<InventoryCount, 'id' | 'updated_at'>[]) {
     const path = 'inventory_counts';
     const historyPath = 'inventory_history';

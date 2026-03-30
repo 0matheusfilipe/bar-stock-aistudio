@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { inventoryService } from '@/src/services/inventoryService';
 import { Product, Category, InventoryCount } from '@/src/types';
+import { useUnit } from '@/src/contexts/UnitContext';
 import { TracingBeam } from './ui/tracing-beam';
 import { BorderBeam } from './ui/border-beam';
 import { 
@@ -50,7 +51,9 @@ const getTimestamp = (u: any) => u?.toDate ? u.toDate().getTime() : (typeof u ==
 
 export const AdvancedDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { selectedUnitId } = useUnit();
   const [history, setHistory] = useState<InventoryCount[]>([]);
+  const [currentCounts, setCurrentCounts] = useState<InventoryCount[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,15 +64,18 @@ export const AdvancedDashboard: React.FC = () => {
   useEffect(() => {
     setIsMounted(true);
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const [hist, cats, prods] = await Promise.all([
-          inventoryService.getAllHistory(),
+        const [hist, cats, prods, counts] = await Promise.all([
+          inventoryService.getAllHistory(selectedUnitId),
           inventoryService.getCategories(),
           inventoryService.getProducts(),
+          inventoryService.getCounts(selectedUnitId),
         ]);
         setHistory(hist);
         setCategories(cats);
         setProducts(prods);
+        setCurrentCounts(counts);
       } catch (error) {
         console.error('Error loading dashboard stats:', error);
       } finally {
@@ -77,7 +83,7 @@ export const AdvancedDashboard: React.FC = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [selectedUnitId]);
 
   // Filter history by period
   const filteredHistory = useMemo(() => {
@@ -95,10 +101,10 @@ export const AdvancedDashboard: React.FC = () => {
   const stats = useMemo(() => {
     const totalEntradas = filteredHistory.filter(h => h.type === 'receipt').length;
     const totalSaidas = filteredHistory.filter(h => h.type === 'count').length;
-    const totalUnits = products.reduce((acc, p) => {
-        const count = history.find(h => h.product_id === p.id);
-        return acc + (count?.total_units || 0);
-    }, 0);
+    
+    // Use currentCounts instead of logic searching history which might be slow/inaccurate
+    const totalUnits = currentCounts.reduce((acc, c) => acc + (c.total_units || 0), 0);
+    const critical = currentCounts.filter(c => c.is_critical).length;
     
     // Group units by day for chart
     const dailyData: Record<string, any> = {};
@@ -133,12 +139,12 @@ export const AdvancedDashboard: React.FC = () => {
     const categoryStats = categories.map(cat => {
         const catProducts = products.filter(p => p.category_id === cat.id);
         const totalUnits = catProducts.reduce((acc, p) => {
-            const h = history.find(h => h.product_id === p.id);
-            return acc + (h?.total_units || 0);
+            const c = currentCounts.find(count => count.product_id === p.id);
+            return acc + (c?.total_units || 0);
         }, 0);
         const criticalCount = catProducts.filter(p => {
-            const h = history.find(h => h.product_id === p.id);
-            return h?.is_critical;
+            const c = currentCounts.find(count => count.product_id === p.id);
+            return c?.is_critical;
         }).length;
 
         // Get unique employees for this category from history
@@ -176,12 +182,9 @@ export const AdvancedDashboard: React.FC = () => {
       efficiency,
       categoryStats,
       topReceiptCategory,
-      critical: products.filter(p => {
-        const h = history.find(h => h.product_id === p.id);
-        return h?.is_critical;
-      }).length
+      critical
     };
-  }, [filteredHistory, history, products, categories, period]);
+  }, [filteredHistory, history, currentCounts, products, categories, period]);
 
   if (loading) {
     return (
