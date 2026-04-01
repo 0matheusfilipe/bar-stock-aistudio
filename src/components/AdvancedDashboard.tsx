@@ -25,7 +25,8 @@ import {
   Search,
   Zap,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { inventoryService } from '@/src/services/inventoryService';
 import { Product, Category, InventoryCount } from '@/src/types';
@@ -58,6 +59,8 @@ export const AdvancedDashboard: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('7d');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -85,17 +88,32 @@ export const AdvancedDashboard: React.FC = () => {
     fetchData();
   }, [selectedUnitId]);
 
-  // Filter history by period
+  // Filter history by period or custom dates
   const filteredHistory = useMemo(() => {
+    let result = history;
     const now = new Date();
-    const cutoff = new Date();
-    if (period === '7d') cutoff.setDate(now.getDate() - 7);
-    else if (period === '30d') cutoff.setDate(now.getDate() - 30);
-    else if (period === '24h') cutoff.setHours(now.getHours() - 24);
-    else return history;
+    
+    if (dateFrom || dateTo) {
+      result = result.filter(h => {
+        const hTime = getTimestamp(h.updated_at);
+        const hDate = new Date(hTime);
+        if (dateFrom && hDate < new Date(dateFrom + 'T00:00:00')) return false;
+        if (dateTo && hDate > new Date(dateTo + 'T23:59:59')) return false;
+        return true;
+      });
+    } else {
+      const cutoff = new Date();
+      if (period === '7d') cutoff.setDate(now.getDate() - 7);
+      else if (period === '30d') cutoff.setDate(now.getDate() - 30);
+      else if (period === '24h') cutoff.setHours(now.getHours() - 24);
 
-    return history.filter(h => getTimestamp(h.updated_at) > cutoff.getTime());
-  }, [history, period]);
+      if (period !== 'all') {
+        result = result.filter(h => getTimestamp(h.updated_at) > cutoff.getTime());
+      }
+    }
+
+    return result;
+  }, [history, period, dateFrom, dateTo]);
 
   // Aggregate stats
   const stats = useMemo(() => {
@@ -107,24 +125,38 @@ export const AdvancedDashboard: React.FC = () => {
     const critical = currentCounts.filter(c => c.is_critical).length;
     
     // Group units by day for chart
-    const dailyData: Record<string, any> = {};
-    const days = period === '30d' ? 30 : 7;
-    for(let i=0; i < days; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-        dailyData[dateStr] = { date: dateStr, entradas: 0, salidas: 0 };
+    const chartDataMap = new Map();
+    const todayDate = new Date();
+    todayDate.setHours(0,0,0,0);
+
+    if (!dateFrom && !dateTo && period !== 'all') {
+      const days = period === '30d' ? 30 : (period === '24h' ? 1 : 7);
+      for(let i = 0; i < days; i++) {
+          const d = new Date(todayDate.getTime());
+          d.setDate(d.getDate() - i);
+          const ts = d.getTime();
+          const dateStr = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+          chartDataMap.set(ts, { date: dateStr, ts, entradas: 0, salidas: 0 });
+      }
     }
 
     filteredHistory.forEach(h => {
-      const date = new Date(getTimestamp(h.updated_at)).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-      if (dailyData[date]) {
-        if (h.type === 'receipt') dailyData[date].entradas += (h.received_boxes || 1);
-        else dailyData[date].salidas += 1;
+      const time = getTimestamp(h.updated_at);
+      const d = new Date(time);
+      d.setHours(0,0,0,0);
+      const ts = d.getTime();
+      const dateStr = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+
+      if (!chartDataMap.has(ts)) {
+        chartDataMap.set(ts, { date: dateStr, ts, entradas: 0, salidas: 0 });
       }
+      
+      const item = chartDataMap.get(ts);
+      if (h.type === 'receipt') item.entradas += (h.received_boxes || 1);
+      else item.salidas += 1;
     });
 
-    const chartData = Object.values(dailyData).reverse();
+    const chartData = Array.from(chartDataMap.values()).sort((a, b) => a.ts - b.ts);
 
     // Calculate Efficiency (products counted today / total products)
     const today = new Date();
@@ -209,14 +241,37 @@ export const AdvancedDashboard: React.FC = () => {
               <p className="text-muted-foreground font-bold uppercase tracking-widest text-sm">Visualización en tiempo real del inventario</p>
             </div>
             
-            <Tabs defaultValue="7d" onValueChange={setPeriod} className="w-full md:w-auto">
-              <TabsList className="bg-card/50 backdrop-blur-xl border border-border">
-                <TabsTrigger value="24h">24H</TabsTrigger>
-                <TabsTrigger value="7d">7 DIAS</TabsTrigger>
-                <TabsTrigger value="30d">30 DIAS</TabsTrigger>
-                <TabsTrigger value="all">TODO</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="flex flex-col md:flex-row gap-4 flex-wrap items-center">
+              <div className="flex items-center gap-2 bg-card/50 backdrop-blur-xl border border-border p-1.5 rounded-xl">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => { setDateFrom(e.target.value); setPeriod(''); }}
+                  className="h-10 bg-transparent border-none px-2 text-xs font-bold text-foreground focus:outline-none transition-all cursor-pointer w-[120px]"
+                />
+                <span className="text-muted-foreground text-xs uppercase font-black">hasta</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => { setDateTo(e.target.value); setPeriod(''); }}
+                  className="h-10 bg-transparent border-none px-2 text-xs font-bold text-foreground focus:outline-none transition-all cursor-pointer w-[120px]"
+                />
+                {(dateFrom || dateTo) && (
+                  <button onClick={() => { setDateFrom(''); setDateTo(''); setPeriod('7d'); }} className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors mr-1">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              
+              <Tabs value={period} onValueChange={(v) => { setPeriod(v); setDateFrom(''); setDateTo(''); }} className="hidden sm:block">
+                <TabsList className="bg-card/50 backdrop-blur-xl border border-border rounded-xl p-1.5 h-auto">
+                  <TabsTrigger value="24h" className="rounded-lg text-xs py-2">24H</TabsTrigger>
+                  <TabsTrigger value="7d" className="rounded-lg text-xs py-2">7 DIAS</TabsTrigger>
+                  <TabsTrigger value="30d" className="rounded-lg text-xs py-2">30 DIAS</TabsTrigger>
+                  <TabsTrigger value="all" className="rounded-lg text-xs py-2">TODO</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
           </div>
         </section>
 

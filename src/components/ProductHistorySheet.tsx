@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   History as HistoryIcon,
-  Loader2
+  Loader2,
+  X,
+  CalendarDays
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { 
@@ -43,6 +45,8 @@ export const ProductHistorySheet: React.FC<ProductHistorySheetProps> = ({
   const { selectedUnitId } = useUnit();
   const [historyData, setHistoryData] = useState<InventoryCount[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -62,21 +66,58 @@ export const ProductHistorySheet: React.FC<ProductHistorySheetProps> = ({
     fetchHistory();
   }, [productId, isOpen, selectedUnitId]);
 
+  const filteredHistory = historyData.filter(item => {
+    const date = item.updated_at 
+      ? (typeof item.updated_at === 'string' 
+          ? new Date(item.updated_at) 
+          : (item.updated_at as any).toDate())
+      : new Date();
+    
+    if (dateFrom && date < new Date(dateFrom + 'T00:00:00')) return false;
+    if (dateTo && date > new Date(dateTo + 'T23:59:59')) return false;
+    return true;
+  });
+
   return (
     <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-xl bg-background border-border text-foreground p-0 flex flex-col">
         <div className="p-8 border-b border-border shrink-0">
           <SheetHeader>
-            <div className="flex items-center gap-4 mb-2">
-              <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-card border border-border flex items-center justify-center text-muted-foreground shrink-0">
                 <HistoryIcon size={24} />
               </div>
               <div>
-                <SheetTitle className="text-2xl font-black tracking-tight text-foreground">Historial de Conteo</SheetTitle>
-                <SheetDescription className="text-muted-foreground font-bold uppercase tracking-widest text-xs">
-                  {productName}
+                <SheetTitle className="text-2xl font-black tracking-tight text-foreground truncate">{productName}</SheetTitle>
+                <SheetDescription className="text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
+                  Historial de Conteo
                 </SheetDescription>
               </div>
+            </div>
+            
+            {/* Date Filters */}
+            <div className="flex items-center gap-2 bg-card/50 backdrop-blur-sm border border-border p-1.5 rounded-xl h-12 w-full">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                className="flex-1 min-w-0 bg-transparent border-none px-2 text-[11px] font-bold text-foreground focus:outline-none transition-all cursor-pointer"
+              />
+              <span className="text-muted-foreground text-[9px] uppercase font-black tracking-widest px-1 shrink-0">hasta</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                className="flex-1 min-w-0 bg-transparent border-none px-2 text-[11px] font-bold text-foreground focus:outline-none transition-all cursor-pointer"
+              />
+              {(dateFrom || dateTo) && (
+                <button 
+                  onClick={() => { setDateFrom(''); setDateTo(''); }} 
+                  className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors ml-1"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
           </SheetHeader>
         </div>
@@ -88,13 +129,13 @@ export const ProductHistorySheet: React.FC<ProductHistorySheetProps> = ({
                 <Loader2 className="animate-spin text-muted-foreground" size={32} />
                 <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">Buscando historial...</p>
               </div>
-            ) : historyData.length === 0 ? (
+            ) : filteredHistory.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground mb-2">
                   <HistoryIcon size={32} />
                 </div>
-                <p className="text-muted-foreground font-bold text-lg">No se encontró ningún historial</p>
-                <p className="text-muted-foreground/60 text-sm max-w-[240px]">Los conteos aparecerán aquí después de ser guardados en el sistema.</p>
+                <p className="text-muted-foreground font-bold text-lg">No se encontró historial</p>
+                <p className="text-muted-foreground/60 text-sm max-w-[240px]">Ajusta los filtros de fecha o espera a que se registren conteos.</p>
               </div>
             ) : (
               <Table>
@@ -108,14 +149,15 @@ export const ProductHistorySheet: React.FC<ProductHistorySheetProps> = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {historyData.map((item, index) => {
+                  {filteredHistory.map((item, index) => {
                     const date = item.updated_at 
                       ? (typeof item.updated_at === 'string' 
                           ? new Date(item.updated_at) 
                           : (item.updated_at as any).toDate())
                       : new Date();
                     
-                    const nextItem = historyData[index + 1];
+                    const originalIndex = historyData.findIndex(h => h.id === item.id);
+                    const nextItem = historyData[originalIndex + 1];
                     const change = nextItem ? item.total_units - nextItem.total_units : item.total_units;
                     const isReceipt = item.type === 'receipt';
 
