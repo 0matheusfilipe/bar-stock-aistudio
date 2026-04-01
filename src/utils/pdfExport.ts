@@ -15,6 +15,7 @@ interface ProductRow {
   product: Product;
   category: Category;
   count?: InventoryCount;
+  unitName?: string;
 }
 
 // Brand colors
@@ -114,88 +115,119 @@ export function generateInventoryPDF(
     doc.text(kpi.value, x + 8, kpiY + 16);
   });
 
-  // ── Table ────────────────────────────────────────────────────
-  const tableStartY = kpiY + 28;
+  // ── Tables ───────────────────────────────────────────────────
+  let currentY = kpiY + 28;
 
-  const tableData = rows.map(row => {
-    const count = row.count;
-    const status = !count ? 'Pendiente' : count.is_critical ? 'Crítico' : 'OK';
-    const lastUpdate = count?.updated_at
-      ? new Date(typeof count.updated_at === 'string' ? count.updated_at : (count.updated_at as any).toDate()).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
-      : '—';
-
-    return [
-      row.product.name,
-      row.category.name,
-      String(row.product.units_per_box || 1),
-      String(count?.barra_units ?? '—'),
-      String(count?.almacen_boxes ?? '—'),
-      String(count?.total_units ?? '—'),
-      String(count?.faltante ?? '—'),
-      status,
-      lastUpdate
-    ];
+  // Group rows by unit
+  const groupedRows: Record<string, ProductRow[]> = {};
+  rows.forEach(r => {
+    const uName = r.unitName || options.unitName || 'Unidad';
+    if (!groupedRows[uName]) groupedRows[uName] = [];
+    groupedRows[uName].push(r);
   });
 
-  autoTable(doc, {
-    startY: tableStartY,
-    head: [['Producto', 'Categoría', 'Uni/Caja', 'Barra', 'Almacén', 'Total', 'Faltante', 'Estado', 'Últ. Actualización']],
-    body: tableData,
-    theme: 'grid',
-    headStyles: {
-      fillColor: [...BRAND_DARK] as [number, number, number],
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      fontSize: 8,
-      cellPadding: 4,
-      halign: 'center',
-    },
-    styles: {
-      fontSize: 8,
-      cellPadding: 3.5,
-      lineColor: [226, 232, 240],
-      lineWidth: 0.3,
-      textColor: [...BRAND_DARK] as [number, number, number],
-    },
-    columnStyles: {
-      0: { fontStyle: 'bold', halign: 'left', cellWidth: 50 },
-      1: { halign: 'left', cellWidth: 35, textColor: [...BRAND_MUTED] as [number, number, number] },
-      2: { halign: 'center', cellWidth: 18 },
-      3: { halign: 'center', cellWidth: 18 },
-      4: { halign: 'center', cellWidth: 20 },
-      5: { halign: 'center', cellWidth: 18, fontStyle: 'bold' },
-      6: { halign: 'center', cellWidth: 18 },
-      7: { halign: 'center', cellWidth: 22 },
-      8: { halign: 'center', fontSize: 7, textColor: [...BRAND_MUTED] as [number, number, number] },
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    didParseCell: (data) => {
-      // Color the "Estado" column
-      if (data.section === 'body' && data.column.index === 7) {
-        const val = data.cell.raw as string;
-        if (val.includes('Crítico')) {
-          data.cell.styles.textColor = [...BRAND_RED] as [number, number, number];
-          data.cell.styles.fontStyle = 'bold';
-        } else if (val.includes('OK')) {
-          data.cell.styles.textColor = [...BRAND_GREEN] as [number, number, number];
-          data.cell.styles.fontStyle = 'bold';
-        } else if (val.includes('Pendiente')) {
-          data.cell.styles.textColor = [...BRAND_AMBER] as [number, number, number];
-          data.cell.styles.fontStyle = 'bold';
+  const isMultiUnit = Object.keys(groupedRows).length > 1 || options.unitName === 'Todas';
+
+  Object.entries(groupedRows).forEach(([unitGroupName, unitRows], index) => {
+    // Check page break for unit header
+    if (currentY > pageHeight - 40 && index > 0) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    // Draw unit header if multiple units
+    if (isMultiUnit) {
+      doc.setFillColor(241, 245, 249); // slate-100
+      doc.rect(14, currentY, pageWidth - 28, 8, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(...BRAND_DARK);
+      doc.text(`UNIDAD: ${unitGroupName.toUpperCase()}`, 18, currentY + 5.5);
+      currentY += 10;
+    }
+
+    const tableData = unitRows.map(row => {
+      const count = row.count;
+      const status = !count ? 'Pendiente' : count.is_critical ? 'Crítico' : 'OK';
+      const lastUpdate = count?.updated_at
+        ? new Date(typeof count.updated_at === 'string' ? count.updated_at : (count.updated_at as any).toDate()).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+        : '—';
+
+      return [
+        row.product.name,
+        row.category.name,
+        String(row.product.units_per_box || 1),
+        String(count?.barra_units ?? '—'),
+        String(count?.almacen_boxes ?? '—'),
+        String(count?.total_units ?? '—'),
+        String(count?.faltante ?? '—'),
+        status,
+        lastUpdate
+      ];
+    });
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Producto', 'Categoría', 'Uni/Caja', 'Barra', 'Almacén', 'Total', 'Faltante', 'Estado', 'Últ. Actualización']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [...BRAND_DARK] as [number, number, number],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8,
+        cellPadding: 4,
+        halign: 'center',
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 3.5,
+        lineColor: [226, 232, 240],
+        lineWidth: 0.3,
+        textColor: [...BRAND_DARK] as [number, number, number],
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', halign: 'left', cellWidth: 50 },
+        1: { halign: 'left', cellWidth: 35, textColor: [...BRAND_MUTED] as [number, number, number] },
+        2: { halign: 'center', cellWidth: 18 },
+        3: { halign: 'center', cellWidth: 18 },
+        4: { halign: 'center', cellWidth: 20 },
+        5: { halign: 'center', cellWidth: 18, fontStyle: 'bold' },
+        6: { halign: 'center', cellWidth: 18 },
+        7: { halign: 'center', cellWidth: 22 },
+        8: { halign: 'center', fontSize: 7, textColor: [...BRAND_MUTED] as [number, number, number] },
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      didParseCell: (data) => {
+        // Color the "Estado" column
+        if (data.section === 'body' && data.column.index === 7) {
+          const val = data.cell.raw as string;
+          if (val.includes('Crítico')) {
+            data.cell.styles.textColor = [...BRAND_RED] as [number, number, number];
+            data.cell.styles.fontStyle = 'bold';
+          } else if (val.includes('OK')) {
+            data.cell.styles.textColor = [...BRAND_GREEN] as [number, number, number];
+            data.cell.styles.fontStyle = 'bold';
+          } else if (val.includes('Pendiente')) {
+            data.cell.styles.textColor = [...BRAND_AMBER] as [number, number, number];
+            data.cell.styles.fontStyle = 'bold';
+          }
         }
-      }
-      // Color faltante column when > 0
-      if (data.section === 'body' && data.column.index === 6) {
-        const val = Number(data.cell.raw);
-        if (!isNaN(val) && val > 0) {
-          data.cell.styles.textColor = [...BRAND_RED] as [number, number, number];
-          data.cell.styles.fontStyle = 'bold';
+        // Color faltante column when > 0
+        if (data.section === 'body' && data.column.index === 6) {
+          const val = Number(data.cell.raw);
+          if (!isNaN(val) && val > 0) {
+            data.cell.styles.textColor = [...BRAND_RED] as [number, number, number];
+            data.cell.styles.fontStyle = 'bold';
+          }
         }
-      }
-    },
-    margin: { left: 14, right: 14 },
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 12;
   });
 
   // ── Footer ───────────────────────────────────────────────────

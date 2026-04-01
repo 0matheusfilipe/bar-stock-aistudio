@@ -235,11 +235,30 @@ export const Dashboard: React.FC = () => {
         </div>
         <Button
           onClick={() => {
-            const rows = filteredProducts.map(p => ({
-              product: p,
-              category: categories.find(c => c.id === p.category_id) || { id: '', name: 'Sin categoría', created_at: '' },
-              count: countsMap.get(p.id),
-            }));
+            const rows: any[] = [];
+            
+            if (selectedUnitId === 'ALL') {
+              units.forEach(unit => {
+                filteredProducts.forEach(p => {
+                  const count = currentCounts.find(c => c.product_id === p.id && c.unit_id === unit.id);
+                  rows.push({
+                    product: p,
+                    category: categories.find(c => c.id === p.category_id) || { id: '', name: 'Sin categoría', created_at: '' },
+                    count: count,
+                    unitName: unit.name
+                  });
+                });
+              });
+            } else {
+              filteredProducts.forEach(p => {
+                rows.push({
+                  product: p,
+                  category: categories.find(c => c.id === p.category_id) || { id: '', name: 'Sin categoría', created_at: '' },
+                  count: countsMap.get(p.id)
+                });
+              });
+            }
+
             const unitObj = units.find(u => u.id === selectedUnitId);
             generateInventoryPDF(rows, {
               unitName: selectedUnitId === 'ALL' ? 'Todas' : unitObj?.name || selectedUnitId,
