@@ -2,53 +2,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: PIN-based auth — Firebase Auth only provides an anonymous session.
-    // All real access control is handled at the UI layer via PIN + role.
+    // Requires a valid Firebase Auth session (anonymous or otherwise).
+    // PIN-based role control is enforced at the UI layer.
     function isAuthenticated() {
-      return true;
+      return request.auth != null;
     }
 
-    function isAdmin() {
-      return isAuthenticated();
-    }
-
-    // Default deny
+    // Default deny — blocks any path not explicitly matched below.
     match /{document=**} {
       allow read, write: if false;
     }
 
+    // ── Profiles ──────────────────────────────────────────────
     match /profiles/{profileId} {
       allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated();
     }
 
+    // ── Units ─────────────────────────────────────────────────
     match /units/{unitId} {
       allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated();
     }
 
+    // ── Categories ────────────────────────────────────────────
     match /categories/{categoryId} {
       allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated();
     }
 
+    // ── Products ──────────────────────────────────────────────
     match /products/{productId} {
       allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated();
     }
 
+    // ── Inventory Counts ──────────────────────────────────────
     match /inventory_counts/{countId} {
       allow read: if isAuthenticated();
       allow create, update: if isAuthenticated();
     }
 
+    // ── Inventory History (append-only) ───────────────────────
     match /inventory_history/{historyId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
+      // No update or delete — history is immutable.
     }
   }
 }
+
