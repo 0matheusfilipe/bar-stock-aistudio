@@ -248,6 +248,17 @@ export const inventoryService = {
     }
   },
 
+  async getAllCounts(): Promise<InventoryCount[]> {
+    const path = 'inventory_counts';
+    try {
+      const snapshot = await getDocs(collection(db, path));
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryCount));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
   // Inventory Counts
   subscribeToCounts(unitId: string | undefined, callback: (counts: InventoryCount[]) => void) {
     const path = 'inventory_counts';

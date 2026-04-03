@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { FileDown, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Unit, Category, Product, InventoryCount, Profile } from '@/src/types';
+import { inventoryService } from '@/src/services/inventoryService';
 import { generateInventoryPDF } from '@/src/utils/pdfExport';
 import { toast } from 'sonner';
 
@@ -32,6 +33,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['ok', 'critical', 'pending']);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -51,69 +53,85 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
     setSelectedStatuses(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (selectedUnits.length === 0 || selectedCategories.length === 0 || selectedStatuses.length === 0) {
       toast.error('Selecciona al menos una unidad, categoría y estado.');
       return;
     }
 
-    const rows: any[] = [];
-    const activeUnits = units.filter(u => selectedUnits.includes(u.id));
-    const activeProducts = products.filter(p => selectedCategories.includes(p.category_id));
+    setIsProcessing(true);
+    const toastId = toast.loading('Calculando cruce de inventarios...');
 
-    activeUnits.forEach(unit => {
-      activeProducts.forEach(p => {
-        const count = currentCounts.find(c => c.product_id === p.id && c.unit_id === unit.id);
-        
-        let status = 'pending';
-        if (count) {
-          status = count.is_critical ? 'critical' : 'ok';
-        }
+    try {
+      // Always look up the global counts so that filtering "All Units" works flawlessly
+      const globalCounts = await inventoryService.getAllCounts();
 
-        if (!selectedStatuses.includes(status)) return;
+      const rows: any[] = [];
+      const activeUnits = units.filter(u => selectedUnits.includes(u.id));
+      const activeProducts = products.filter(p => selectedCategories.includes(p.category_id));
 
-        if (count?.updated_at && (dateFrom || dateTo)) {
-           const ts = typeof count.updated_at === 'string' 
-             ? new Date(count.updated_at).getTime()
-             : (count.updated_at as any).toMillis?.() ?? 0;
-           const date = new Date(ts);
-           if (dateFrom && date < new Date(dateFrom + 'T00:00:00')) return;
-           if (dateTo && date > new Date(dateTo + 'T23:59:59')) return;
-        } else if (!count && (dateFrom || dateTo)) {
-          return; 
-        }
+      activeUnits.forEach(unit => {
+        activeProducts.forEach(p => {
+          const count = globalCounts.find(c => c.product_id === p.id && c.unit_id === unit.id);
+          
+          let status = 'pending';
+          if (count) {
+            status = count.is_critical ? 'critical' : 'ok';
+          }
 
-        rows.push({
-          product: p,
-          category: categories.find(c => c.id === p.category_id) || { id: '', name: 'Sin categoría', created_at: '' },
-          count: count,
-          unitName: unit.name
+          if (!selectedStatuses.includes(status)) return;
+
+          if (count?.updated_at && (dateFrom || dateTo)) {
+             const ts = typeof count.updated_at === 'string' 
+               ? new Date(count.updated_at).getTime()
+               : (count.updated_at as any).toMillis?.() ?? 0;
+             const date = new Date(ts);
+             if (dateFrom && date < new Date(dateFrom + 'T00:00:00')) return;
+             if (dateTo && date > new Date(dateTo + 'T23:59:59')) return;
+          } else if (!count && (dateFrom || dateTo)) {
+            return; 
+          }
+
+          rows.push({
+            product: p,
+            category: categories.find(c => c.id === p.category_id) || { id: '', name: 'Sin categoría', created_at: '' },
+            count: count,
+            unitName: unit.name
+          });
         });
       });
-    });
 
-    if (rows.length === 0) {
-      toast.error('No hay datos para exportar con estos filtros.');
-      return;
+      if (rows.length === 0) {
+        toast.dismiss(toastId);
+        toast.error('No hay datos para exportar con estos filtros.');
+        return;
+      }
+
+      // Sort rows by Unit name, then by category, then by product name
+      rows.sort((a, b) => {
+        if (a.unitName !== b.unitName) return a.unitName.localeCompare(b.unitName);
+        if (a.category.name !== b.category.name) return a.category.name.localeCompare(b.category.name);
+        return a.product.name.localeCompare(b.product.name);
+      });
+
+      generateInventoryPDF(rows, {
+        unitName: selectedUnits.length === units.length ? 'Todas' : 'Selección Múltiple',
+        categoryName: selectedCategories.length === categories.length ? 'Todas' : 'Selección Múltiple',
+        dateFrom,
+        dateTo,
+        generatedBy: user?.name,
+      });
+      
+      toast.dismiss(toastId);
+      toast.success('PDF exportado correctamente.');
+      onClose();
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error(error);
+      toast.error('Error al generar el documento.');
+    } finally {
+      setIsProcessing(false);
     }
-
-    // Sort rows by Unit name, then by category, then by product name
-    rows.sort((a, b) => {
-      if (a.unitName !== b.unitName) return a.unitName.localeCompare(b.unitName);
-      if (a.category.name !== b.category.name) return a.category.name.localeCompare(b.category.name);
-      return a.product.name.localeCompare(b.product.name);
-    });
-
-    generateInventoryPDF(rows, {
-      unitName: selectedUnits.length === units.length ? 'Todas' : 'Selección',
-      categoryName: selectedCategories.length === categories.length ? 'Todas' : 'Selección',
-      dateFrom,
-      dateTo,
-      generatedBy: user?.name,
-    });
-    
-    toast.success('PDF exportado correctamente.');
-    onClose();
   };
 
   const statusOptions = [
@@ -228,9 +246,10 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
               </Button>
               <Button
                 onClick={handleExport}
+                disabled={isProcessing}
                 className="flex-1 h-14 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-lg gap-2"
               >
-                <FileDown size={18} /> Generar PDF
+                <FileDown size={18} /> {isProcessing ? 'Generando...' : 'Generar PDF'}
               </Button>
             </div>
             
