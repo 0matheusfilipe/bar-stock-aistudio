@@ -114,9 +114,16 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
         return a.product.name.localeCompare(b.product.name);
       });
 
+      const finalUnitName = selectedUnits.length === units.length ? 'Todas' : units.filter(u => selectedUnits.includes(u.id)).map(u => u.name).join(', ');
+      const finalCategoryName = selectedCategories.length === categories.length ? 'Todas' : categories.filter(c => selectedCategories.includes(c.id)).map(c => c.name).join(', ');
+      
+      const statusOptionsMap: Record<string, string> = { ok: 'OK', critical: 'Crítico', pending: 'Pendiente' };
+      const finalStatusName = selectedStatuses.length === 3 ? 'Todos' : selectedStatuses.map(s => statusOptionsMap[s]).join(', ');
+
       generateInventoryPDF(rows, {
-        unitName: selectedUnits.length === units.length ? 'Todas' : 'Selección Múltiple',
-        categoryName: selectedCategories.length === categories.length ? 'Todas' : 'Selección Múltiple',
+        unitName: finalUnitName,
+        categoryName: finalCategoryName,
+        statusName: finalStatusName,
         dateFrom,
         dateTo,
         generatedBy: user?.name,

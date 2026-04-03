@@ -9,6 +9,7 @@ interface ExportOptions {
   dateFrom?: string;
   dateTo?: string;
   generatedBy?: string;
+  statusName?: string;
 }
 
 interface ProductRow {
@@ -34,6 +35,7 @@ export function generateInventoryPDF(
     title = 'Reporte de Inventario',
     unitName,
     categoryName,
+    statusName,
     dateFrom,
     dateTo,
     generatedBy
@@ -60,10 +62,10 @@ export function generateInventoryPDF(
   // Subtitle line
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(180, 190, 210);
   const subtitleParts: string[] = [];
-  if (unitName && unitName !== 'ALL') subtitleParts.push(`Unidad: ${unitName}`);
-  if (categoryName && categoryName !== 'all') subtitleParts.push(`Categoría: ${categoryName}`);
+  if (unitName && unitName !== 'ALL') subtitleParts.push(`Unid: ${unitName}`);
+  if (categoryName && categoryName !== 'all') subtitleParts.push(`Cat: ${categoryName}`);
+  if (statusName) subtitleParts.push(`Estado: ${statusName}`);
   if (dateFrom || dateTo) {
     const range = [dateFrom || '...', dateTo || '...'].join(' → ');
     subtitleParts.push(`Período: ${range}`);
