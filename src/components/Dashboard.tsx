@@ -533,6 +533,17 @@ export const Dashboard: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+      <PdfExportModal 
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        units={units}
+        categories={categories}
+        products={products}
+        currentCounts={currentCounts}
+        user={user}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+      />
     </div>
   );
 };
