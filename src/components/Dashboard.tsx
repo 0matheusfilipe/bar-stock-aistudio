@@ -193,6 +193,7 @@ export const Dashboard: React.FC = () => {
     setSaving(true);
     try {
       const totalUnits = Number(modalData.barra) + (Number(modalData.almacen) * (selectedProduct.units_per_box || 1));
+      const autoIsCritical = totalUnits <= 10;
       await inventoryService.updateCount(
         selectedProduct.id,
         selectedUnitId,
@@ -201,7 +202,7 @@ export const Dashboard: React.FC = () => {
         modalData.almacen,
         totalUnits,
         modalData.faltante,
-        modalData.isCritical
+        autoIsCritical
       );
       setSelectedProduct(null);
     } catch (error) {
@@ -510,16 +511,24 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-muted/50 rounded-2xl">
-                    <input 
-                      type="checkbox" 
-                      id="critical" 
-                      checked={modalData.isCritical} 
-                      onChange={(e) => setModalData({...modalData, isCritical: e.target.checked})}
-                      className="w-5 h-5 rounded-md accent-primary"
-                    />
-                    <label htmlFor="critical" className="text-xs font-black uppercase tracking-widest cursor-pointer select-none">Marcar como Stock Crítico</label>
-                </div>
+                {(() => {
+                  const currentTotal = Number(modalData.barra) + (Number(modalData.almacen) * (selectedProduct.units_per_box || 1));
+                  const isAutoCritical = currentTotal <= 10;
+                  
+                  return (
+                    <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isAutoCritical ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
+                        {isAutoCritical ? <AlertTriangle size={20} className="text-red-500" /> : <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px] font-black">✓</div>}
+                        <div className="flex flex-col">
+                          <label className={`text-xs font-black uppercase tracking-widest ${isAutoCritical ? 'text-red-500' : 'text-emerald-500'}`}>
+                            {isAutoCritical ? 'Stock Crítico Detectado' : 'Stock Saludable'}
+                          </label>
+                          <span className={`text-[10px] font-bold ${isAutoCritical ? 'text-red-500/70' : 'text-emerald-500/70'}`}>
+                            {isAutoCritical ? 'Igual a o menor que 10 unidades totales.' : 'Más de 10 unidades en stock.'}
+                          </span>
+                        </div>
+                    </div>
+                  );
+                })()}
 
                 <Button 
                   disabled={saving}
