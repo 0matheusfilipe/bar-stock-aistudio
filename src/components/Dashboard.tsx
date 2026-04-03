@@ -31,6 +31,7 @@ import {
 } from '@/src/components/ui/card';
 import { Input } from '@/src/components/ui/input';
 import { Label } from '@/src/components/ui/label';
+import { PdfExportModal } from './PdfExportModal';
 import { generateInventoryPDF } from '@/src/utils/pdfExport';
 
 // --- Sub-components ---
@@ -68,6 +69,7 @@ export const Dashboard: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -234,40 +236,7 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
         <Button
-          onClick={() => {
-            const rows: any[] = [];
-            
-            if (selectedUnitId === 'ALL') {
-              units.forEach(unit => {
-                filteredProducts.forEach(p => {
-                  const count = currentCounts.find(c => c.product_id === p.id && c.unit_id === unit.id);
-                  rows.push({
-                    product: p,
-                    category: categories.find(c => c.id === p.category_id) || { id: '', name: 'Sin categoría', created_at: '' },
-                    count: count,
-                    unitName: unit.name
-                  });
-                });
-              });
-            } else {
-              filteredProducts.forEach(p => {
-                rows.push({
-                  product: p,
-                  category: categories.find(c => c.id === p.category_id) || { id: '', name: 'Sin categoría', created_at: '' },
-                  count: countsMap.get(p.id)
-                });
-              });
-            }
-
-            const unitObj = units.find(u => u.id === selectedUnitId);
-            generateInventoryPDF(rows, {
-              unitName: selectedUnitId === 'ALL' ? 'Todas' : unitObj?.name || selectedUnitId,
-              categoryName: selectedCategory === 'all' ? undefined : categories.find(c => c.id === selectedCategory)?.name,
-              dateFrom,
-              dateTo,
-              generatedBy: user?.name,
-            });
-          }}
+          onClick={() => setIsExportModalOpen(true)}
           variant="outline"
           className="h-14 px-6 rounded-2xl font-black uppercase tracking-widest text-xs gap-3 border-primary/30 text-primary hover:bg-primary/10 active:scale-95 transition-all shrink-0"
         >
