@@ -85,7 +85,7 @@ export const InventorySummary: React.FC = () => {
               if (h.type !== 'receipt') return false;
               const hDate = h.updated_at ? (typeof h.updated_at === 'string' ? new Date(h.updated_at) : (h.updated_at as any).toDate()) : new Date();
               return hDate >= today;
-            }).reduce((sum, h) => sum + ((h.received_boxes || 0) * (p.units_per_box || 1)), 0);
+            }).reduce((sum, h) => sum + (h.received_boxes || 0), 0);
 
             return {
               product: p,
@@ -183,9 +183,6 @@ export const InventorySummary: React.FC = () => {
                     <div className="flex flex-col">
                       <span className="text-2xl font-black tracking-tight text-foreground print:text-black">
                         {item.product.name}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">
-                        1 Caja = {item.product.units_per_box || 1} Unid
                       </span>
                     </div>
                   </TableCell>

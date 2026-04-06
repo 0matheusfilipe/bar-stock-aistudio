@@ -385,9 +385,9 @@ export const inventoryService = {
         isCritical = Boolean(currentData.is_critical);
       }
 
-      // Add received boxes
+      // Add received units directly
       const newAlmacenBoxes = almacenBoxes + (Number(receivedBoxes) || 0);
-      const newTotalUnits = barraUnits + (newAlmacenBoxes * (Number(unitsPerBox) || 1));
+      const newTotalUnits = barraUnits + newAlmacenBoxes;
 
       const data = {
         product_id: productId,

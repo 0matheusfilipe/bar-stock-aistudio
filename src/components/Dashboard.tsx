@@ -192,7 +192,7 @@ export const Dashboard: React.FC = () => {
     if (!selectedProduct || !user || !selectedUnitId || selectedUnitId === 'ALL') return;
     setSaving(true);
     try {
-      const totalUnits = Number(modalData.barra) + (Number(modalData.almacen) * (selectedProduct.units_per_box || 1));
+      const totalUnits = Number(modalData.barra) + Number(modalData.almacen);
       const autoIsCritical = totalUnits <= 10;
       await inventoryService.updateCount(
         selectedProduct.id,
@@ -493,7 +493,7 @@ export const Dashboard: React.FC = () => {
                     />
                   </div>
                   <div className="space-y-3">
-                    <Label className="text-xs font-black uppercase ml-1">Almacén (Cajas)</Label>
+                    <Label className="text-xs font-black uppercase ml-1">Almacén (Uni)</Label>
                     <Input
                       type="number"
                       value={modalData.almacen}
@@ -507,9 +507,8 @@ export const Dashboard: React.FC = () => {
                   <div className="p-6 bg-primary/5 rounded-[2rem] border border-primary/20">
                      <div className="text-[10px] font-black uppercase text-primary mb-2">Total Calculado</div>
                      <div className="text-4xl font-black tracking-tighter text-primary">
-                       {Number(modalData.barra) + (Number(modalData.almacen) * (selectedProduct.units_per_box || 1))}
+                       {Number(modalData.barra) + Number(modalData.almacen)}
                      </div>
-                     <p className="text-[8px] font-bold text-primary/60 mt-2">({selectedProduct.units_per_box} uni/caja)</p>
                   </div>
                   <div className="space-y-3">
                     <Label className="text-xs font-black uppercase ml-1">Faltante</Label>
@@ -523,7 +522,7 @@ export const Dashboard: React.FC = () => {
                 </div>
 
                 {(() => {
-                  const currentTotal = Number(modalData.barra) + (Number(modalData.almacen) * (selectedProduct.units_per_box || 1));
+                  const currentTotal = Number(modalData.barra) + Number(modalData.almacen);
                   const isAutoCritical = currentTotal <= 10;
                   const isAutoWarning = !isAutoCritical && currentTotal < 20 && Number(modalData.almacen) === 0;
                   
@@ -535,7 +534,7 @@ export const Dashboard: React.FC = () => {
                             {isAutoCritical ? 'Stock Crítico Detectado' : isAutoWarning ? 'Atención: Producto por Agotarse' : 'Stock Saludable'}
                           </label>
                           <span className={`text-[10px] font-bold ${isAutoCritical ? 'text-red-500/70' : isAutoWarning ? 'text-orange-500/70' : 'text-emerald-500/70'}`}>
-                            {isAutoCritical ? 'Igual o menor a 10 unidades totales.' : isAutoWarning ? 'Menor a 20 unidades y sin cajas de respaldo en almacén.' : 'Más de 10 unidades en stock con respaldo suficiente.'}
+                            {isAutoCritical ? 'Igual o menor a 10 unidades totales.' : isAutoWarning ? 'Menor a 20 unidades y sin respaldo en almacén.' : 'Más de 10 unidades en stock con respaldo suficiente.'}
                           </span>
                         </div>
                     </div>

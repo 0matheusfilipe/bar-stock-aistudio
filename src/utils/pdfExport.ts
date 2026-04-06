@@ -158,7 +158,6 @@ export function generateInventoryPDF(
       return [
         row.product.name,
         row.category.name,
-        String(row.product.units_per_box || 1),
         String(count?.barra_units ?? '—'),
         String(count?.almacen_boxes ?? '—'),
         String(count?.total_units ?? '—'),
@@ -170,7 +169,7 @@ export function generateInventoryPDF(
 
     autoTable(doc, {
       startY: currentY,
-      head: [['Producto', 'Categoría', 'Uni/Caja', 'Barra', 'Almacén', 'Total', 'Faltante', 'Estado', 'Últ. Actualización']],
+      head: [['Producto', 'Categoría', 'Barra', 'Almacén', 'Total', 'Faltante', 'Estado', 'Últ. Actualización']],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -191,20 +190,19 @@ export function generateInventoryPDF(
       columnStyles: {
         0: { fontStyle: 'bold', halign: 'left', cellWidth: 50 },
         1: { halign: 'left', cellWidth: 35, textColor: [...BRAND_MUTED] as [number, number, number] },
-        2: { halign: 'center', cellWidth: 18 },
-        3: { halign: 'center', cellWidth: 18 },
-        4: { halign: 'center', cellWidth: 20 },
-        5: { halign: 'center', cellWidth: 18, fontStyle: 'bold' },
-        6: { halign: 'center', cellWidth: 18 },
-        7: { halign: 'center', cellWidth: 22 },
-        8: { halign: 'center', fontSize: 7, textColor: [...BRAND_MUTED] as [number, number, number] },
+        2: { halign: 'center', cellWidth: 20 },
+        3: { halign: 'center', cellWidth: 20 },
+        4: { halign: 'center', cellWidth: 20, fontStyle: 'bold' },
+        5: { halign: 'center', cellWidth: 20 },
+        6: { halign: 'center', cellWidth: 26 },
+        7: { halign: 'center', fontSize: 7, textColor: [...BRAND_MUTED] as [number, number, number] },
       },
       alternateRowStyles: {
         fillColor: [248, 250, 252],
       },
       didParseCell: (data) => {
         // Color the "Estado" column
-        if (data.section === 'body' && data.column.index === 7) {
+        if (data.section === 'body' && data.column.index === 6) {
           const val = data.cell.raw as string;
           if (val.includes('Crítico')) {
             data.cell.styles.textColor = [...BRAND_RED] as [number, number, number];
@@ -212,13 +210,16 @@ export function generateInventoryPDF(
           } else if (val.includes('OK')) {
             data.cell.styles.textColor = [...BRAND_GREEN] as [number, number, number];
             data.cell.styles.fontStyle = 'bold';
+          } else if (val.includes('Atenção')) {
+            data.cell.styles.textColor = [...BRAND_AMBER] as [number, number, number];
+            data.cell.styles.fontStyle = 'bold';
           } else if (val.includes('Pendiente')) {
             data.cell.styles.textColor = [...BRAND_AMBER] as [number, number, number];
             data.cell.styles.fontStyle = 'bold';
           }
         }
         // Color faltante column when > 0
-        if (data.section === 'body' && data.column.index === 6) {
+        if (data.section === 'body' && data.column.index === 5) {
           const val = Number(data.cell.raw);
           if (!isNaN(val) && val > 0) {
             data.cell.styles.textColor = [...BRAND_RED] as [number, number, number];

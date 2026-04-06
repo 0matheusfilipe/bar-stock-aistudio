@@ -83,7 +83,7 @@ export const Receipts: React.FC = () => {
         selectedUnitId,
         user.id,
         receivedBoxes,
-        selectedProduct.units_per_box || 1
+        1 // Treat all received amounts directly as units now
       );
       toast.success('¡Entrada registrada con éxito!');
       setSelectedProduct(null);
@@ -185,7 +185,7 @@ export const Receipts: React.FC = () => {
                   <div className="w-full max-w-sm space-y-6">
                     <div className="space-y-3">
                       <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                        Cantidad Recibida (Cajas)
+                        Cantidad Recibida (Unidades)
                       </label>
                       <div className="flex items-center justify-center gap-4">
                         <Button
@@ -211,14 +211,7 @@ export const Receipts: React.FC = () => {
                         </Button>
                       </div>
                     </div>
-  
-                    <div className="bg-muted/50 rounded-xl p-3 flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total en Unidades</span>
-                      <span className="text-lg font-black font-mono text-foreground">
-                        {receivedBoxes * (selectedProduct.units_per_box || 1)}
-                      </span>
-                    </div>
-  
+
                     <Button 
                       className="w-full h-14 rounded-xl text-base font-bold uppercase tracking-widest"
                       disabled={receivedBoxes === 0 || isSubmitting}

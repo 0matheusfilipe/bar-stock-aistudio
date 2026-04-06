@@ -184,15 +184,7 @@ export const ProductManager: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Unidades por Caja</label>
-                <input
-                  type="number"
-                  value={formData.units_per_box || 1}
-                  onChange={(e) => setFormData({ ...formData, units_per_box: parseInt(e.target.value) || 1 })}
-                  className="w-full h-14 px-6 bg-card border border-border rounded-2xl text-lg font-bold text-foreground"
-                />
-              </div>
+
             </div>
             <div className="flex justify-end gap-4">
               <Button 
@@ -232,9 +224,7 @@ export const ProductManager: React.FC = () => {
                     <span className="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-1 rounded-md">
                       {category?.name || 'Sin Categoría'}
                     </span>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                      {product.units_per_box || 1} Unid/Caja
-                    </span>
+
                   </div>
                 </div>
               </div>

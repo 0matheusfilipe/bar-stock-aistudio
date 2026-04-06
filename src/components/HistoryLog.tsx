@@ -109,7 +109,7 @@ export const HistoryLog: React.FC = () => {
 
           // If it's a receipt, add to receiptsToday
           if (item.type === 'receipt') {
-            const units = (item.received_boxes || 0) * (product?.units_per_box || 1);
+            const units = item.received_boxes || 0;
             groupedByDate[dateKey].products[item.product_id].receiptsToday += units;
           }
         });
@@ -340,7 +340,7 @@ export const HistoryLog: React.FC = () => {
                                     <p className="font-mono font-bold text-foreground">{count.barraUnits || 0}</p>
                                   </div>
                                   <div className="text-center">
-                                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Alm. (Cajas)</p>
+                                    <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest mb-1">Alm. (Uni)</p>
                                     <p className="font-mono font-bold text-foreground">{count.almacenBoxes || 0}</p>
                                   </div>
                                   <div className="text-center">
