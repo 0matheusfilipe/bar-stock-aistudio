@@ -86,13 +86,17 @@ export const Dashboard: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Modal State
+  // Modal State — string values so inputs don't show leading zeros
   const [modalData, setModalData] = useState({
-    barra: 0,
-    almacen: 0,
-    faltante: 0,
+    barra: '' as string,
+    almacen: '' as string,
+    faltante: '' as string,
     isCritical: false
   });
+
+  // Normalize text: strip diacritics, hyphens and lowercase for fuzzy search
+  const normalizeText = (text: string) =>
+    text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-]/g, ' ').toLowerCase();
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -160,8 +164,8 @@ export const Dashboard: React.FC = () => {
       });
     }
     if (searchTerm.trim() !== '') {
-      const lowerSearch = searchTerm.toLowerCase();
-      result = result.filter(p => p.name.toLowerCase().includes(lowerSearch));
+      const normalizedSearch = normalizeText(searchTerm);
+      result = result.filter(p => normalizeText(p.name).includes(normalizedSearch));
     }
     return result;
   }, [products, selectedCategory, countsMap, dateFrom, dateTo, searchTerm]);
@@ -180,9 +184,9 @@ export const Dashboard: React.FC = () => {
     }
     const count = countsMap.get(product.id);
     setModalData({
-      barra: count?.barra_units || 0,
-      almacen: count?.almacen_boxes || 0,
-      faltante: count?.faltante || 0,
+      barra: count?.barra_units ? String(count.barra_units) : '',
+      almacen: count?.almacen_boxes ? String(count.almacen_boxes) : '',
+      faltante: count?.faltante ? String(count.faltante) : '',
       isCritical: count?.is_critical || false
     });
     setSelectedProduct(product);
@@ -192,16 +196,19 @@ export const Dashboard: React.FC = () => {
     if (!selectedProduct || !user || !selectedUnitId || selectedUnitId === 'ALL') return;
     setSaving(true);
     try {
-      const totalUnits = Number(modalData.barra) + Number(modalData.almacen);
+      const barra = Number(modalData.barra) || 0;
+      const almacen = Number(modalData.almacen) || 0;
+      const faltante = Number(modalData.faltante) || 0;
+      const totalUnits = barra + almacen;
       const autoIsCritical = totalUnits <= 10;
       await inventoryService.updateCount(
         selectedProduct.id,
         selectedUnitId,
         user.id,
-        modalData.barra,
-        modalData.almacen,
+        barra,
+        almacen,
         totalUnits,
-        modalData.faltante,
+        faltante,
         autoIsCritical
       );
       setSelectedProduct(null);
@@ -487,8 +494,16 @@ export const Dashboard: React.FC = () => {
                     <Label className="text-xs font-black uppercase ml-1">Barra (Uni)</Label>
                     <Input
                       type="number"
+                      min="0"
                       value={modalData.barra}
-                      onChange={(e) => setModalData({...modalData, barra: parseInt(e.target.value) || 0})}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || val === '0') { setModalData({...modalData, barra: val === '0' ? '0' : ''}); return; }
+                        const num = Math.max(0, parseInt(val) || 0);
+                        setModalData({...modalData, barra: String(num)});
+                      }}
+                      onFocus={(e) => { if (modalData.barra === '0') setModalData({...modalData, barra: ''}); }}
+                      placeholder="0"
                       className="h-16 rounded-2xl border-2 border-border focus:border-primary transition-all text-xl font-black px-6"
                     />
                   </div>
@@ -496,8 +511,16 @@ export const Dashboard: React.FC = () => {
                     <Label className="text-xs font-black uppercase ml-1">Almacén (Uni)</Label>
                     <Input
                       type="number"
+                      min="0"
                       value={modalData.almacen}
-                      onChange={(e) => setModalData({...modalData, almacen: parseInt(e.target.value) || 0})}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || val === '0') { setModalData({...modalData, almacen: val === '0' ? '0' : ''}); return; }
+                        const num = Math.max(0, parseInt(val) || 0);
+                        setModalData({...modalData, almacen: String(num)});
+                      }}
+                      onFocus={(e) => { if (modalData.almacen === '0') setModalData({...modalData, almacen: ''}); }}
+                      placeholder="0"
                       className="h-16 rounded-2xl border-2 border-border focus:border-primary transition-all text-xl font-black px-6"
                     />
                   </div>
@@ -514,8 +537,16 @@ export const Dashboard: React.FC = () => {
                     <Label className="text-xs font-black uppercase ml-1">Faltante</Label>
                     <Input
                       type="number"
+                      min="0"
                       value={modalData.faltante}
-                      onChange={(e) => setModalData({...modalData, faltante: parseInt(e.target.value) || 0})}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '' || val === '0') { setModalData({...modalData, faltante: val === '0' ? '0' : ''}); return; }
+                        const num = Math.max(0, parseInt(val) || 0);
+                        setModalData({...modalData, faltante: String(num)});
+                      }}
+                      onFocus={(e) => { if (modalData.faltante === '0') setModalData({...modalData, faltante: ''}); }}
+                      placeholder="0"
                       className="h-16 rounded-2xl border-2 border-border focus:border-primary transition-all text-xl font-black px-6 text-red-500"
                     />
                   </div>
