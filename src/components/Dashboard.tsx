@@ -389,25 +389,34 @@ export const Dashboard: React.FC = () => {
           <AnimatePresence mode='popLayout'>
             {filteredProducts.map((p) => {
               const count = countsMap.get(p.id);
-            return (
-              <motion.div
-                key={p.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                onClick={() => handleProductClick(p)}
-                className="group cursor-pointer"
-              >
-                <div className={`h-full p-6 rounded-3xl border border-border bg-card/60 backdrop-blur-sm hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/5 relative overflow-hidden ${count?.is_critical ? 'border-red-500/30' : ''}`}>
-                  {count?.is_critical && (
-                    <div className="absolute top-4 right-4 animate-pulse">
-                      <AlertTriangle size={18} className="text-red-500" />
-                    </div>
-                  )}
-                  
-                  <div className="mb-6">
+              return (
+                <motion.div
+                  key={p.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={() => handleProductClick(p)}
+                  className="group cursor-pointer"
+                >
+                  {(() => {
+                    const isCrit = count && (count.total_units <= 10 || count.is_critical);
+                    const isWarn = count && !isCrit && count.total_units < 20 && count.almacen_boxes === 0;
+                    return (
+                      <div className={`h-full p-6 rounded-3xl border border-border bg-card/60 backdrop-blur-sm hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/5 relative overflow-hidden ${isCrit ? 'border-red-500/30 bg-red-500/5' : isWarn ? 'border-orange-500/30 bg-orange-500/5' : ''}`}>
+                        {isCrit && (
+                          <div className="absolute top-4 right-4 animate-pulse">
+                            <AlertTriangle size={18} className="text-red-500" />
+                          </div>
+                        )}
+                        {isWarn && (
+                          <div className="absolute top-4 right-4 animate-pulse">
+                            <AlertTriangle size={18} className="text-orange-500" />
+                          </div>
+                        )}
+                        
+                        <div className="mb-6">
                     <div className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">PRODUTO</div>
                     <h3 className="text-xl font-black tracking-tight group-hover:text-primary transition-colors">{p.name}</h3>
                   </div>
@@ -436,6 +445,8 @@ export const Dashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                  );
+                })()}
               </motion.div>
             );
           })}
@@ -514,16 +525,17 @@ export const Dashboard: React.FC = () => {
                 {(() => {
                   const currentTotal = Number(modalData.barra) + (Number(modalData.almacen) * (selectedProduct.units_per_box || 1));
                   const isAutoCritical = currentTotal <= 10;
+                  const isAutoWarning = !isAutoCritical && currentTotal < 20 && Number(modalData.almacen) === 0;
                   
                   return (
-                    <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isAutoCritical ? 'bg-red-500/10 border-red-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
-                        {isAutoCritical ? <AlertTriangle size={20} className="text-red-500" /> : <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px] font-black">✓</div>}
+                    <div className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isAutoCritical ? 'bg-red-500/10 border-red-500/30' : isAutoWarning ? 'bg-orange-500/10 border-orange-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
+                        {isAutoCritical ? <AlertTriangle size={20} className="text-red-500" /> : isAutoWarning ? <AlertTriangle size={20} className="text-orange-500" /> : <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px] font-black">✓</div>}
                         <div className="flex flex-col">
-                          <label className={`text-xs font-black uppercase tracking-widest ${isAutoCritical ? 'text-red-500' : 'text-emerald-500'}`}>
-                            {isAutoCritical ? 'Stock Crítico Detectado' : 'Stock Saludable'}
+                          <label className={`text-xs font-black uppercase tracking-widest ${isAutoCritical ? 'text-red-500' : isAutoWarning ? 'text-orange-500' : 'text-emerald-500'}`}>
+                            {isAutoCritical ? 'Stock Crítico Detectado' : isAutoWarning ? 'Atención: Producto por Agotarse' : 'Stock Saludable'}
                           </label>
-                          <span className={`text-[10px] font-bold ${isAutoCritical ? 'text-red-500/70' : 'text-emerald-500/70'}`}>
-                            {isAutoCritical ? 'Igual a o menor que 10 unidades totales.' : 'Más de 10 unidades en stock.'}
+                          <span className={`text-[10px] font-bold ${isAutoCritical ? 'text-red-500/70' : isAutoWarning ? 'text-orange-500/70' : 'text-emerald-500/70'}`}>
+                            {isAutoCritical ? 'Igual o menor a 10 unidades totales.' : isAutoWarning ? 'Menor a 20 unidades y sin cajas de respaldo en almacén.' : 'Más de 10 unidades en stock con respaldo suficiente.'}
                           </span>
                         </div>
                     </div>
